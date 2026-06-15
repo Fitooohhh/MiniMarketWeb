@@ -21,6 +21,7 @@ export default function Layout({ children, type = 'cliente' }) {
   // Links base para todos los empleados
   const baseEmpleadoLinks = [
     { to: '/empleado', icon: Home, label: 'Inicio' },
+    { to: '/empleado/cajero', icon: ShoppingCart, label: 'Caja POS' },
     { to: '/empleado/pedidos', icon: Package, label: 'Pedidos' },
     { to: '/empleado/asistencia', icon: Clock, label: 'Asistencia' },
   ]
@@ -58,7 +59,11 @@ export default function Layout({ children, type = 'cliente' }) {
     { to: '/cliente/perfil', icon: User, label: 'Perfil' },
   ]
 
-  const links = type === 'empleado' ? empleadoLinks : clienteLinks
+  const cajeroLinks = [
+    { to: '/cajero', icon: ShoppingCart, label: 'Caja POS' },
+  ]
+
+  const links = type === 'empleado' ? empleadoLinks : type === 'cajero' ? cajeroLinks : clienteLinks
   const cartCount = type === 'cliente' ? getItemCount() : 0
 
   const handleLogout = async () => {

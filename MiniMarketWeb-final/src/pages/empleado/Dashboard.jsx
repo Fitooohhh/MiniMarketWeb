@@ -170,7 +170,19 @@ export default function EmpleadoDashboard() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
             Accesos Rápidos
           </h2>
-          <div className={`grid gap-4 ${profile?.rol === 'admin' ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3'}`}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <a
+              href="/empleado/cajero"
+              className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10"
+            >
+              <ShoppingCart className="w-8 h-8 text-blue-600 mb-2" />
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Caja Registradora
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Punto de Venta POS y escáner
+              </p>
+            </a>
             <a
               href="/empleado/pedidos"
               className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"

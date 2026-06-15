@@ -20,6 +20,9 @@ import EmpleadoUsuarios from './pages/empleado/Usuarios'
 import EmpleadoHistorialRepartos from './pages/empleado/HistorialRepartos'
 import EmpleadoTurnos from './pages/empleado/Turnos'
 import EmpleadoDevoluciones from './pages/empleado/Devoluciones'
+import CajeroDashboard from './pages/cajero/Cajero'
+
+
 import AdminPromociones from './pages/admin/Promociones'
 import AdminLealtad from './pages/admin/Lealtad'
 import AdminDevoluciones from './pages/admin/Devoluciones'
@@ -178,6 +181,14 @@ function App() {
             <EmpleadoDevoluciones />
           </ProtectedRoute>
         } />
+        <Route path="/cajero" element={
+          <ProtectedRoute requireCajero>
+            <CajeroDashboard />
+          </ProtectedRoute>
+        } />
+
+
+
         
         {/* Rutas de clientes */}
         <Route path="/cliente" element={
@@ -235,6 +246,8 @@ function App() {
                 ? <Navigate to="/empleado" replace /> 
                 : profile.rol === 'repartidor'
                 ? <Navigate to="/repartidor" replace />
+                : profile.rol === 'cajero'
+                ? <Navigate to="/cajero" replace />
                 : <Navigate to="/cliente" replace />)
             : <Navigate to="/login" replace />
         } />

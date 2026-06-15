@@ -204,6 +204,12 @@ export const useAuthStore = create(
       isRepartidor: () => {
         const profile = get().profile
         return profile?.rol === 'repartidor'
+      },
+      
+      // Verificar si es cajero
+      isCajero: () => {
+        const profile = get().profile
+        return profile?.rol === 'cajero'
       }
     }),
     {

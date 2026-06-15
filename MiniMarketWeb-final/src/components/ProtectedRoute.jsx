@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import LoadingScreen from './LoadingScreen'
 
-export default function ProtectedRoute({ children, requireEmpleado, requireCliente, requireRepartidor }) {
+export default function ProtectedRoute({ children, requireEmpleado, requireCliente, requireRepartidor, requireCajero }) {
   const user = useAuthStore((state) => state.user)
   const profile = useAuthStore((state) => state.profile)
   const loading = useAuthStore((state) => state.loading)
@@ -17,7 +17,7 @@ export default function ProtectedRoute({ children, requireEmpleado, requireClien
     return <Navigate to="/login" replace />
   }
 
-  // Verificar permisos de empleado
+  // Verificar permisos de empleado (admin o empleado general)
   if (requireEmpleado && profile.rol !== 'empleado' && profile.rol !== 'admin') {
     return <Navigate to="/login" replace />
   }
@@ -29,6 +29,11 @@ export default function ProtectedRoute({ children, requireEmpleado, requireClien
 
   // Verificar permisos de repartidor
   if (requireRepartidor && profile.rol !== 'repartidor') {
+    return <Navigate to="/login" replace />
+  }
+
+  // Verificar permisos de cajero
+  if (requireCajero && profile.rol !== 'cajero') {
     return <Navigate to="/login" replace />
   }
 
