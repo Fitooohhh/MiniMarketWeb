@@ -1,0 +1,42 @@
+# ============================================================
+#  Entorno de Pre-Producción — MiniMarket
+#  Ubuntu 24.04 | Node.js 20 | Supabase (sin BD local)
+# ============================================================
+
+Vagrant.configure("2") do |config|
+
+  # ---- Box ----
+  config.vm.box         = "bento/ubuntu-24.04"
+  config.vm.box_version = "202510.26.0"
+
+  # ---- Red ----
+  # Puerto principal: app en 3000 (guest) → 8080 (host)
+  config.vm.network "forwarded_port", guest: 3000, host: 8080, host_ip: "127.0.0.1"
+
+  # Puerto secundario por si se necesita acceso directo al dev server
+  config.vm.network "forwarded_port", guest: 4173, host: 4173, host_ip: "127.0.0.1"
+
+  # Red privada para acceder desde el host (sin NAT)
+  config.vm.network "private_network", ip: "192.168.33.20"
+
+  # ---- Carpeta sincronizada ----
+  # Monta la carpeta infra/ como /vagrant dentro de la VM
+  config.vm.synced_folder ".", "/vagrant"
+
+  # ---- Recursos de la VM ----
+  config.vm.provider "virtualbox" do |vb|
+    vb.name   = "minimarket-preprod"
+    vb.memory = "2048"
+    vb.cpus   = 2
+  end
+
+  # ---- Provision 1: Shell (prepara Ansible) ----
+  config.vm.provision "shell", path: "setup.sh"
+
+  # ---- Provision 2: Ansible Local (configura la app) ----
+  config.vm.provision "ansible_local" do |ansible|
+    ansible.playbook = "ansible/playbook.yml"
+    ansible.verbose  = true
+  end
+
+end

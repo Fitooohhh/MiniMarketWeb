@@ -1,0 +1,270 @@
+---
+# ============================================================
+#  playbook.yml — Ansible para MiniMarket Pre-Producción
+#  Instala Node.js 20, configura UFW, clona el repo desde
+#  GitHub, hace el build del frontend Vite+React y levanta
+#  un servidor Express que sirve el dist/ en el puerto 3000.
+#  Conexión a BD: Supabase (sin instalación local de BD).
+# ============================================================
+
+- name: Configurar entorno de preproducción MiniMarket
+  hosts: all
+  become: true
+
+  vars:
+    repo_url:         "https://github.com/Fitooohhh/MiniMarketWeb2.git"
+    app_dir:          "/opt/minimarket"
+    frontend_dir:     "/opt/minimarket/MiniMarketWeb-final"
+    server_dir:       "/opt/minimarket/server"
+    supabase_url:     "https://izfxvtasfylqalgnkwia.supabase.co"
+    supabase_anon_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6Znh2dGFzZnlscWFsZ25rd2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDgwMTQsImV4cCI6MjA3NTk4NDAxNH0.4BkYsJAc7bL4966_oUljaDX7Nr6Ni4jl7Gm0Q35fNrE"
+
+  tasks:
+
+    # ----------------------------------------------------------
+    # BLOQUE 1: Paquetes del sistema
+    # ----------------------------------------------------------
+
+    - name: Actualizar repositorios de paquetes
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar dependencias base del sistema
+      apt:
+        name:
+          - git
+          - curl
+          - build-essential
+          - openssh-server
+          - ufw
+        state: present
+
+    - name: Asegurar que el servicio SSH está activo
+      service:
+        name: ssh
+        state: started
+        enabled: yes
+
+    # ----------------------------------------------------------
+    # BLOQUE 2: Node.js 20 LTS (vía NodeSource)
+    # ----------------------------------------------------------
+
+    - name: Descargar script de instalación de NodeSource (Node 20)
+      get_url:
+        url: https://deb.nodesource.com/setup_20.x
+        dest: /tmp/nodesource_setup.sh
+        mode: '0755'
+
+    - name: Ejecutar script de NodeSource para registrar repositorio
+      command: bash /tmp/nodesource_setup.sh
+
+    - name: Instalar Node.js 20
+      apt:
+        name: nodejs
+        state: present
+        update_cache: yes
+
+    - name: Verificar versión de Node.js instalada
+      command: node --version
+      register: node_version
+
+    - name: Mostrar versión de Node.js
+      debug:
+        msg: "Node.js instalado: {{ node_version.stdout }}"
+
+    # ----------------------------------------------------------
+    # BLOQUE 3: Firewall UFW (puertos internos de la VM)
+    # ----------------------------------------------------------
+
+    - name: "UFW: permitir SSH (puerto 22)"
+      command: ufw allow 22/tcp
+
+    - name: "UFW: permitir aplicación (puerto 3000)"
+      command: ufw allow 3000/tcp
+
+    - name: "UFW: habilitar firewall (sin prompt interactivo)"
+      command: ufw --force enable
+
+    - name: "UFW: ver estado del firewall"
+      command: ufw status verbose
+      register: ufw_status
+
+    - name: Mostrar estado UFW
+      debug:
+        msg: "{{ ufw_status.stdout_lines }}"
+
+    # ----------------------------------------------------------
+    # BLOQUE 4: Clonar repositorio desde GitHub
+    # ----------------------------------------------------------
+
+    - name: Limpiar directorio de app si ya existe (para re-provision)
+      file:
+        path: "{{ app_dir }}"
+        state: absent
+
+    - name: Crear directorio base de la aplicación (solo el raíz, vacío)
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: Clonar repositorio MiniMarket desde GitHub
+      git:
+        repo:    "{{ repo_url }}"
+        dest:    "{{ app_dir }}"
+        version: main
+        force:   yes
+        update:  yes
+      become_user: vagrant
+
+    - name: Crear directorio del servidor Express (después del clone)
+      file:
+        path: "{{ server_dir }}"
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    # ----------------------------------------------------------
+    # BLOQUE 5: Configurar variables de entorno (Supabase)
+    # ----------------------------------------------------------
+
+    - name: Crear archivo .env con credenciales de Supabase
+      copy:
+        dest: "{{ frontend_dir }}/.env"
+        content: |
+          VITE_SUPABASE_URL={{ supabase_url }}
+          VITE_SUPABASE_ANON_KEY={{ supabase_anon_key }}
+        owner: vagrant
+        group: vagrant
+        mode: '0600'
+
+    # ----------------------------------------------------------
+    # BLOQUE 6: Instalar dependencias y construir el frontend
+    # ----------------------------------------------------------
+
+    - name: Instalar dependencias del frontend (npm install)
+      command: npm install
+      args:
+        chdir: "{{ frontend_dir }}"
+      become_user: vagrant
+
+    - name: Construir frontend para producción (npm run build)
+      command: npm run build
+      args:
+        chdir: "{{ frontend_dir }}"
+      become_user: vagrant
+      environment:
+        VITE_SUPABASE_URL:      "{{ supabase_url }}"
+        VITE_SUPABASE_ANON_KEY: "{{ supabase_anon_key }}"
+        NODE_ENV: production
+
+    # ----------------------------------------------------------
+    # BLOQUE 7: Servidor Express para servir el dist/
+    # ----------------------------------------------------------
+
+    - name: Crear servidor Express (server.js)
+      copy:
+        dest: "{{ server_dir }}/server.js"
+        content: |
+          /**
+           * MiniMarket — Servidor Express de Pre-Producción
+           * Sirve el build estático de Vite (dist/)
+           * Escucha en 0.0.0.0:3000 → mapeado al host en 8080
+           * BD: Supabase (conexión desde el browser, sin proxy)
+           */
+          const express = require('express');
+          const path    = require('path');
+
+          const app      = express();
+          const PORT     = process.env.PORT || 3000;
+          const distPath = path.join(__dirname, '../MiniMarketWeb-final/dist');
+
+          // Servir archivos estáticos del build de Vite
+          app.use(express.static(distPath));
+
+          // Fallback para React Router (SPA)
+          app.get('*', (req, res) => {
+            res.sendFile(path.join(distPath, 'index.html'));
+          });
+
+          app.listen(PORT, '0.0.0.0', () => {
+            console.log(`✅ MiniMarket corriendo en http://0.0.0.0:${PORT}`);
+            console.log(`   Accede desde el host en: http://localhost:8080`);
+          });
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: Crear package.json del servidor Express
+      copy:
+        dest: "{{ server_dir }}/package.json"
+        content: |
+          {
+            "name": "minimarket-preprod-server",
+            "version": "1.0.0",
+            "description": "Servidor Express para servir el frontend MiniMarket en pre-producción",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "express": "^4.18.2"
+            }
+          }
+        owner: vagrant
+        group: vagrant
+        mode: '0644'
+
+    - name: Instalar dependencias del servidor Express
+      command: npm install
+      args:
+        chdir: "{{ server_dir }}"
+      become_user: vagrant
+
+    # ----------------------------------------------------------
+    # BLOQUE 8: Servicio systemd (arranque automático)
+    # ----------------------------------------------------------
+
+    - name: Crear servicio systemd minimarket.service
+      copy:
+        dest: /etc/systemd/system/minimarket.service
+        content: |
+          [Unit]
+          Description=MiniMarket Pre-Producción (Vite + React + Supabase)
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=vagrant
+          WorkingDirectory={{ server_dir }}
+          ExecStart=/usr/bin/node server.js
+          Restart=on-failure
+          RestartSec=5
+          Environment=PORT=3000
+          Environment=NODE_ENV=production
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: Recargar daemon de systemd
+      command: systemctl daemon-reload
+
+    - name: Habilitar y arrancar el servicio minimarket
+      service:
+        name:    minimarket
+        state:   started
+        enabled: yes
+
+    - name: Verificar que el servicio está corriendo
+      command: systemctl status minimarket
+      register: service_status
+      ignore_errors: yes
+
+    - name: Mostrar estado del servicio
+      debug:
+        msg: "{{ service_status.stdout_lines }}"
