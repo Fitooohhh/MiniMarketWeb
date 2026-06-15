@@ -12,7 +12,7 @@
   become: true
 
   vars:
-    repo_url:         "https://github.com/Fitooohhh/MiniMarketWeb2.git"
+    repo_url:         "https://github.com/Fitooohhh/MiniMarketWeb.git"
     app_dir:          "/opt/minimarket"
     frontend_dir:     "/opt/minimarket/MiniMarketWeb-final"
     server_dir:       "/opt/minimarket/server"
@@ -115,7 +115,7 @@
       git:
         repo:    "{{ repo_url }}"
         dest:    "{{ app_dir }}"
-        version: main
+        version: master
         force:   yes
         update:  yes
       become_user: vagrant
