@@ -185,7 +185,7 @@ class DevolucionesService {
         )
       `)
       .eq('estado', 'pendiente')
-      .order('devolucion(fecha)', { ascending: false })
+      .order('id_devolucion_detalle', { ascending: false })
 
     if (error) throw error
     return data
@@ -294,15 +294,19 @@ class DevolucionesService {
       .select(`
         *,
         devolucion:devolucion(fecha),
-        detalle_venta:detalle_venta (
+        detalle_venta:detalle_venta!inner (
           cantidad,
           precio_unitario,
           producto:producto(nombre, imagen_url),
-          venta:venta(id_venta, fecha)
+          venta:venta!inner (
+            id_venta,
+            fecha,
+            id_cliente
+          )
         )
       `)
       .eq('detalle_venta.venta.id_cliente', idCliente)
-      .order('devolucion(fecha)', { ascending: false })
+      .order('id_devolucion_detalle', { ascending: false })
       .limit(limit)
 
     if (error) throw error
@@ -317,7 +321,7 @@ class DevolucionesService {
         estado,
         cantidad_devuelta,
         monto_reembolso,
-        devolucion:devolucion(fecha),
+        devolucion:devolucion!inner(fecha),
         detalle_venta:detalle_venta (
           producto:producto(categoria),
           venta:venta(fecha)
@@ -366,7 +370,7 @@ class DevolucionesService {
       .from('devolucion_detalle')
       .select(`
         *,
-        devolucion:devolucion(fecha),
+        devolucion:devolucion!inner(fecha),
         detalle_venta:detalle_venta (
           cantidad,
           precio_unitario,
@@ -381,7 +385,7 @@ class DevolucionesService {
       `)
       .gte('devolucion.fecha', fechaInicio)
       .lte('devolucion.fecha', fechaFin)
-      .order('devolucion(fecha)', { ascending: false })
+      .order('id_devolucion_detalle', { ascending: false })
 
     if (estado) {
       query = query.eq('estado', estado)

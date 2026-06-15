@@ -10,27 +10,8 @@ class LealtadService {
   // Registrar puntos de lealtad por una compra
   async registrarPuntosCompra(idCliente, idVenta, totalCompra) {
     try {
-      const puntosGanados = this.calcularPuntosCompra(totalCompra)
-      
-      // Insertar puntos en la tabla puntos_cliente
-      const { data, error } = await supabase
-        .from('puntos_cliente')
-        .insert({
-          id_cliente: idCliente,
-          id_venta: idVenta,
-          puntos_ganados: puntosGanados,
-          fecha_ganado: new Date().toISOString(),
-          descripcion: `Puntos por compra #${idVenta}`,
-          tipo: 'compra'
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Actualizar puntos totales del cliente
-      await this.actualizarPuntosTotales(idCliente)
-
+      // Usamos asignarPuntosCompra que sí está alineada con las columnas y reglas del esquema de base de datos
+      const data = await this.asignarPuntosCompra(idVenta, idCliente, totalCompra)
       return data
     } catch (error) {
       console.error('Error al registrar puntos de lealtad:', error)
@@ -40,14 +21,47 @@ class LealtadService {
 
   // Obtener configuración del programa de lealtad
   async obtenerProgramaLealtad() {
-    const { data, error } = await supabase
-      .from('programa_lealtad')
-      .select('*')
-      .eq('activo', true)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('programa_lealtad')
+        .select('*')
+        .eq('activo', true)
+        .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error
-    return data
+      if (error) throw error
+
+      if (!data) {
+        // Si no hay ningún programa activo, intentamos crear uno por defecto para que funcione la acumulación
+        const defaultPrograma = {
+          nombre: 'Programa General de Lealtad',
+          puntos_por_dolar: 0.5, // Equivale a la mitad del total (getTotal() / 2)
+          puntos_minimos_canje: 100,
+          activo: true
+        }
+
+        const { data: insertedData, error: insertError } = await supabase
+          .from('programa_lealtad')
+          .insert([defaultPrograma])
+          .select()
+          .single()
+
+        if (insertError) {
+          console.warn('No se pudo insertar el programa por defecto, usando fallback en memoria:', insertError.message)
+          return defaultPrograma
+        }
+        return insertedData
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error al obtener programa de lealtad, usando fallback:', error)
+      return {
+        nombre: 'Programa General de Lealtad (Fallback)',
+        puntos_por_dolar: 0.5,
+        puntos_minimos_canje: 100,
+        activo: true
+      }
+    }
   }
 
   // Obtener niveles de cliente
@@ -119,31 +133,53 @@ class LealtadService {
 
     if (errorTransaccion) throw errorTransaccion
 
-    // Actualizar puntos acumulados del cliente
+    // Actualizar puntos acumulados y nivel basado en número de pedidos
+    const numeroPedidos = await this.obtenerNumeroPedidosCliente(idCliente)
     await supabase
       .from('cliente')
       .update({ 
         puntos_acumulados: saldoActual,
-        id_nivel_actual: await this.calcularNivelCliente(saldoActual)
+        id_nivel_actual: await this.calcularNivelCliente(numeroPedidos)
       })
       .eq('id_cliente', idCliente)
 
     return transaccion
   }
 
-  // Calcular nivel del cliente según puntos
-  async calcularNivelCliente(puntos) {
+  // Calcular nivel del cliente según número de pedidos realizados
+  async calcularNivelCliente(numeroPedidos) {
     const niveles = await this.obtenerNivelesCliente()
     let nivelActual = null
 
-    for (const nivel of niveles.reverse()) {
-      if (puntos >= nivel.puntos_minimos) {
-        nivelActual = nivel.id_nivel
-        break
+    if (niveles && Array.isArray(niveles)) {
+      // Usamos una copia para evitar mutar el array original con reverse()
+      // Los niveles están ordenados ASC por puntos_minimos (que ahora representa pedidos mínimos)
+      const nivelesInvertidos = [...niveles].reverse()
+      for (const nivel of nivelesInvertidos) {
+        if (numeroPedidos >= nivel.puntos_minimos) {
+          nivelActual = nivel.id_nivel
+          break
+        }
       }
     }
 
     return nivelActual
+  }
+
+  // Obtener número total de pedidos realizados por un cliente
+  async obtenerNumeroPedidosCliente(idCliente) {
+    try {
+      const { count, error } = await supabase
+        .from('venta')
+        .select('*', { count: 'exact', head: true })
+        .eq('id_cliente', idCliente)
+
+      if (error) throw error
+      return count || 0
+    } catch (error) {
+      console.error('Error al contar pedidos del cliente:', error)
+      return 0
+    }
   }
 
   // Obtener recompensas disponibles
@@ -203,12 +239,13 @@ class LealtadService {
 
     if (errorCanje) throw errorCanje
 
-    // Actualizar puntos del cliente
+    // Actualizar puntos y nivel (basado en pedidos) del cliente
+    const numeroPedidosCanje = await this.obtenerNumeroPedidosCliente(idCliente)
     await supabase
       .from('cliente')
       .update({ 
         puntos_acumulados: nuevoSaldo,
-        id_nivel_actual: await this.calcularNivelCliente(nuevoSaldo),
+        id_nivel_actual: await this.calcularNivelCliente(numeroPedidosCanje),
         fecha_ultimo_canje: new Date().toISOString().split('T')[0]
       })
       .eq('id_cliente', idCliente)
@@ -407,12 +444,13 @@ class LealtadService {
 
     if (error) throw error
 
-    // Actualizar puntos del cliente
+    // Actualizar puntos y nivel (basado en pedidos) del cliente
+    const numeroPedidosAjuste = await this.obtenerNumeroPedidosCliente(idCliente)
     await supabase
       .from('cliente')
       .update({ 
         puntos_acumulados: nuevoSaldo,
-        id_nivel_actual: await this.calcularNivelCliente(nuevoSaldo)
+        id_nivel_actual: await this.calcularNivelCliente(numeroPedidosAjuste)
       })
       .eq('id_cliente', idCliente)
 

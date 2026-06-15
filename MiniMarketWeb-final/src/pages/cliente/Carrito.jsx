@@ -191,6 +191,9 @@ export default function ClienteCarrito() {
                         src={item.imagen_url} 
                         alt={item.nombre}
                         className="w-24 h-24 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200';
+                        }}
                       />
                     ) : (
                       <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">

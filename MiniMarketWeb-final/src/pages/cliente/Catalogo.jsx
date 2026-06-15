@@ -209,6 +209,9 @@ export default function ClienteCatalogo() {
                       src={producto.imagen_url} 
                       alt={producto.nombre}
                       className="w-full h-48 object-cover rounded-lg"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=600';
+                      }}
                     />
                   ) : (
                     <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">

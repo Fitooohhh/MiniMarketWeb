@@ -60,21 +60,33 @@ export default function ClienteDashboard() {
         .from('puntos_cliente')
         .select('*')
         .eq('id_cliente', profile.id_cliente)
-        .order('fecha_ganado', { ascending: false })
+        .order('fecha', { ascending: false })
         .limit(10)
+
+      // Cargar nivel actual y puntos del cliente
+      const { data: clienteNivelData } = await supabase
+        .from('cliente')
+        .select('puntos_acumulados, nivel:nivel_cliente(nombre, descuento_especial, multiplicador_puntos)')
+        .eq('id_cliente', profile.id_cliente)
+        .single()
 
       // Cargar datos de devoluciones
       const { data: devolucionesData } = await supabase
         .from('devolucion_detalle')
         .select(`
           *,
-          detalle_venta (
+          detalle_venta!inner (
+            id_detalle_venta,
             producto (nombre),
-            venta (fecha, id_venta)
+            venta!inner (
+              id_venta,
+              fecha,
+              id_cliente
+            )
           )
         `)
         .eq('detalle_venta.venta.id_cliente', profile.id_cliente)
-        .order('devolucion.fecha', { ascending: false })
+        .order('id_devolucion_detalle', { ascending: false })
 
       // Formatear datos
       const promocionesFormateadas = promocionesData?.map(promo => ({
@@ -91,8 +103,8 @@ export default function ClienteDashboard() {
         pedidosActivos: ventasActivas?.length || 0,
         pedidosCompletados: ventasCompletadas?.length || 0,
         promocionesActivas: promocionesFormateadas.length,
-        puntosLealtad: puntosData?.reduce((sum, p) => sum + p.puntos_ganados, 0) || 0,
-        nivelLealtad: 'Oro', // Esto debería venir de la DB
+        puntosLealtad: clienteNivelData?.puntos_acumulados || puntosData?.reduce((sum, p) => sum + p.puntos_ganados, 0) || 0,
+        nivelLealtad: clienteNivelData?.nivel?.nombre || 'Base',
         devolucionesPendientes: devolucionesData?.filter(d => d.estado === 'pendiente').length || 0,
       })
       setPromociones(promocionesFormateadas)
@@ -270,12 +282,7 @@ export default function ClienteDashboard() {
                                 alt={promo.producto_nombre}
                                 className="w-full h-full object-cover rounded-t-lg"
                                 onError={(e) => {
-                                  e.target.style.display = 'none'
-                                  e.target.parentElement.innerHTML = `
-                                    <div class="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-t-lg">
-                                      <Tag className="w-12 h-12 text-gray-400" />
-                                    </div>
-                                  `
+                                  e.target.src = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200';
                                 }}
                               />
                             ) : (
@@ -356,91 +363,148 @@ export default function ClienteDashboard() {
               </div>
             )}
 
-            {activeTab === 'lealtad' && (
-              <div>
-                {/* Resumen de lealtad */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                  <div className="card text-center">
-                    <div className="p-4 bg-purple-100 dark:bg-purple-900/20 rounded-full inline-block mb-4">
-                      <Star className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {stats.puntosLealtad}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Puntos Acumulados</p>
-                  </div>
+            {activeTab === 'lealtad' && (() => {
+              const nivelesConfig = {
+                'Base':     { emoji: '🪨', color: 'from-gray-400 to-gray-600',    bg: 'bg-gray-100 dark:bg-gray-800',    text: 'text-gray-700 dark:text-gray-300',    border: 'border-gray-300', next: 'Bronce',   pedidosSiguiente: 10 },
+                'Bronce':   { emoji: '🥉', color: 'from-amber-600 to-amber-800',  bg: 'bg-amber-50 dark:bg-amber-900/20', text: 'text-amber-700 dark:text-amber-300',  border: 'border-amber-400', next: 'Plata',    pedidosSiguiente: 20 },
+                'Plata':    { emoji: '🥈', color: 'from-slate-400 to-slate-600',  bg: 'bg-slate-100 dark:bg-slate-800',  text: 'text-slate-700 dark:text-slate-300',  border: 'border-slate-400', next: 'Oro',      pedidosSiguiente: 30 },
+                'Oro':      { emoji: '🥇', color: 'from-yellow-400 to-yellow-600',bg: 'bg-yellow-50 dark:bg-yellow-900/20',text: 'text-yellow-700 dark:text-yellow-300',border: 'border-yellow-400',next: 'Diamante', pedidosSiguiente: 50 },
+                'Diamante': { emoji: '💎', color: 'from-cyan-400 to-blue-600',    bg: 'bg-cyan-50 dark:bg-cyan-900/20',  text: 'text-cyan-700 dark:text-cyan-300',    border: 'border-cyan-400',  next: null,       pedidosSiguiente: null },
+              }
+              const cfg = nivelesConfig[stats.nivelLealtad] || nivelesConfig['Base']
+              const pedidosActuales = stats.pedidosCompletados
+              const progresoPorcentaje = cfg.pedidosSiguiente
+                ? Math.min(100, Math.round((pedidosActuales / cfg.pedidosSiguiente) * 100))
+                : 100
 
-                  <div className="card text-center">
-                    <div className="p-4 bg-yellow-100 dark:bg-yellow-900/20 rounded-full inline-block mb-4">
-                      <TrendingUp className="w-8 h-8 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {stats.nivelLealtad}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Nivel Actual</p>
-                  </div>
-
-                  <div className="card text-center">
-                    <div className="p-4 bg-green-100 dark:bg-green-900/20 rounded-full inline-block mb-4">
-                      <Package className="w-8 h-8 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {stats.pedidosCompletados}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Pedidos Completados</p>
-                  </div>
-                </div>
-
-                {/* Historial de puntos */}
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-                    Historial de Puntos
-                  </h2>
-                  {loading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="card animate-pulse">
-                          <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              return (
+                <div className="space-y-6">
+                  {/* Tarjeta de nivel actual */}
+                  <div className={`rounded-2xl border-2 ${cfg.border} ${cfg.bg} p-6`}>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${cfg.color} flex items-center justify-center text-4xl shadow-lg`}>
+                          {cfg.emoji}
                         </div>
-                      ))}
+                        <div>
+                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Tu nivel actual</p>
+                          <h2 className={`text-3xl font-extrabold ${cfg.text}`}>{stats.nivelLealtad}</h2>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            {pedidosActuales} pedido{pedidosActuales !== 1 ? 's' : ''} realizados
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Puntos acumulados</p>
+                        <p className={`text-4xl font-extrabold ${cfg.text}`}>{stats.puntosLealtad}</p>
+                        <p className="text-xs text-gray-400">pts</p>
+                      </div>
                     </div>
-                  ) : puntosCliente.length > 0 ? (
-                    <div className="space-y-4">
-                      {puntosCliente.map((punto) => (
-                        <div key={punto.id_puntos_cliente} className="card">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">
-                                {punto.descripcion || 'Compra realizada'}
-                              </p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {new Date(punto.fecha_ganado).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-lg font-bold text-green-600">
-                                +{punto.puntos_ganados}
-                              </span>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">puntos</p>
+
+                    {/* Barra de progreso hacia el siguiente nivel */}
+                    {cfg.next ? (
+                      <div className="mt-5">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                            Progreso hacia <span className="font-bold">{cfg.next}</span>
+                          </span>
+                          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                            {pedidosActuales} / {cfg.pedidosSiguiente} pedidos
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                          <div
+                            className={`h-3 rounded-full bg-gradient-to-r ${cfg.color} transition-all duration-700`}
+                            style={{ width: `${progresoPorcentaje}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Te faltan <strong>{cfg.pedidosSiguiente - pedidosActuales}</strong> pedido{(cfg.pedidosSiguiente - pedidosActuales) !== 1 ? 's' : ''} para llegar a {cfg.next}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                        <span className="text-xl">🎉</span>
+                        <span className="font-semibold text-sm">¡Felicidades! Estás en el nivel más alto.</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mapa de niveles */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Programa de Niveles</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                      {Object.entries(nivelesConfig).map(([nombre, info]) => {
+                        const esActual = nombre === stats.nivelLealtad
+                        const alcanzado = ['Base','Bronce','Plata','Oro','Diamante'].indexOf(nombre) <=
+                                          ['Base','Bronce','Plata','Oro','Diamante'].indexOf(stats.nivelLealtad)
+                        return (
+                          <div key={nombre} className={`rounded-xl p-4 text-center border-2 transition-all ${
+                            esActual ? `${info.bg} ${info.border} shadow-md scale-105` :
+                            alcanzado ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-80' :
+                            'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 opacity-50'
+                          }`}>
+                            <div className="text-3xl mb-2">{info.emoji}</div>
+                            <p className={`font-bold text-sm ${esActual ? info.text : 'text-gray-700 dark:text-gray-300'}`}>{nombre}</p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {nombre === 'Base' ? '0–9 pedidos' :
+                               nombre === 'Bronce' ? '10–19' :
+                               nombre === 'Plata' ? '20–29' :
+                               nombre === 'Oro' ? '30–49' : '50+'}
+                            </p>
+                            {esActual && <span className="inline-block mt-2 text-xs bg-white dark:bg-gray-700 rounded-full px-2 py-0.5 font-semibold text-gray-600 dark:text-gray-300">Actual</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Historial de puntos */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Historial de Puntos</h3>
+                    {loading ? (
+                      <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <div key={i} className="card animate-pulse">
+                            <div className="h-14 bg-gray-200 dark:bg-gray-700 rounded" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : puntosCliente.length > 0 ? (
+                      <div className="space-y-3">
+                        {puntosCliente.map((punto) => (
+                          <div key={punto.id_puntos} className="card">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  {punto.concepto || 'Compra realizada'}
+                                </p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {new Date(punto.fecha).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-xl font-extrabold text-green-600">
+                                  +{punto.puntos_ganados}
+                                </span>
+                                <p className="text-xs text-gray-400">puntos</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Star className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                        No hay puntos acumulados
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Comienza a comprar para acumular puntos
-                      </p>
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-10">
+                        <Star className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="font-medium text-gray-700 dark:text-white">Sin puntos aún</p>
+                        <p className="text-sm text-gray-400 mt-1">Realiza tu primera compra para comenzar</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
+
 
             {activeTab === 'devoluciones' && (
               <div>
