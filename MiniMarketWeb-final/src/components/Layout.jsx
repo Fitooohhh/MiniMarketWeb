@@ -40,16 +40,16 @@ export default function Layout({ children, type = 'cliente' }) {
     { to: '/empleado/usuarios', icon: Users, label: 'Gestión de Usuarios' },
     { to: '/empleado/historial-repartos', icon: Clock, label: 'Historial de Repartos' },
     { to: '/empleado/asistencia-empleados', icon: Users, label: 'Asistencia Empleados' },
-    { to: '/admin/promociones', icon: Tag, label: 'Promociones' },
-    { to: '/admin/lealtad', icon: Star, label: 'Programa Lealtad' },
-    { to: '/admin/devoluciones', icon: RotateCcw, label: 'Devoluciones' },
-    { to: '/admin/turnos', icon: Calendar, label: 'Gestión Turnos' },
-    { to: '/admin/nomina', icon: DollarSign, label: 'Nómina' },
   ]
 
   // Combinar links según el rol
   const empleadoLinks = profile?.rol === 'admin' 
-    ? [...baseEmpleadoLinks, ...adminLinks]
+    ? [
+        { to: '/empleado', icon: Home, label: 'Inicio' },
+        { to: '/empleado/pedidos', icon: Package, label: 'Pedidos' },
+        { to: '/empleado/asistencia', icon: Clock, label: 'Asistencia' },
+        ...adminLinks
+      ]
     : [...baseEmpleadoLinks, ...empleadoNormalLinks]
 
   const clienteLinks = [
@@ -91,7 +91,7 @@ export default function Layout({ children, type = 'cliente' }) {
             </div>
 
             {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center flex-1 min-w-0 mx-4 space-x-1 overflow-x-auto">
+            <nav className="hidden lg:flex items-center flex-1 min-w-0 mx-4 space-x-2 overflow-x-auto">
               {links.map((link) => {
                 const Icon = link.icon
                 const isActive = location.pathname === link.to
@@ -99,28 +99,28 @@ export default function Layout({ children, type = 'cliente' }) {
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                    className={`flex items-center px-3 py-2 rounded-md text-sm font-semibold transition-colors whitespace-nowrap ${
                       isActive
                         ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
                         : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    <Icon size={14} className="mr-1 flex-shrink-0" />
-                    <span className="truncate max-w-[80px]">{link.label}</span>
+                    <Icon size={22} className="mr-1.5 flex-shrink-0" />
+                    <span className="truncate max-w-[120px]">{link.label}</span>
                   </Link>
                 )
               })}
             </nav>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-1 flex-shrink-0">
+            <div className="flex items-center space-x-2 flex-shrink-0">
               {/* Carrito (solo clientes) */}
               {type === 'cliente' && (
                 <Link
                   to="/cliente/carrito"
-                  className="relative p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="relative p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
-                  <ShoppingCart size={16} />
+                  <ShoppingCart size={22} />
                   {cartCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                       {cartCount}
@@ -130,34 +130,34 @@ export default function Layout({ children, type = 'cliente' }) {
               )}
 
               {/* Notificaciones */}
-              <button className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <Bell size={16} />
+              <button className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <Bell size={22} />
               </button>
 
               {/* Toggle tema */}
               <button
                 onClick={toggleTheme}
-                className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
-                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                {theme === 'light' ? <Moon size={22} /> : <Sun size={22} />}
               </button>
 
               {/* Usuario */}
-              <div className="hidden sm:flex items-center space-x-1 ml-1">
+              <div className="hidden sm:flex items-center space-x-2 ml-2">
                 <div className="text-right">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                     {profile?.nombre}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 capitalize">
                     {profile?.rol}
                   </p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                   title="Cerrar sesión"
                 >
-                  <LogOut size={16} />
+                  <LogOut size={22} />
                 </button>
               </div>
             </div>

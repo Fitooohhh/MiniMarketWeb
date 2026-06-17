@@ -10,6 +10,7 @@ import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { lealtadService } from '../../lib/lealtadService'
 import { useAuthStore } from '../../store/useAuthStore'
 import toast from 'react-hot-toast'
+import PaymentMethodModal from '../cliente/components/PaymentMethodModal'
 
 
 export default function CajeroDashboard() {
@@ -23,10 +24,10 @@ export default function CajeroDashboard() {
   
   // Carrito de compras del cajero
   const [cartItems, setCartItems] = useState([])
-  const [metodoPago, setMetodoPago] = useState('efectivo')
   const [loading, setLoading] = useState(false)
   const [isScannerActive, setIsScannerActive] = useState(false)
   const scannerRef = useRef(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
     loadProductos()
@@ -208,7 +209,230 @@ export default function CajeroDashboard() {
     return Math.max(0, subtotal - descuento)
   }
 
-  const handleFinalizarCompra = async () => {
+  // Helper para convertir números a letras en español
+  const numeroALetras = (num) => {
+    const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+    const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+    const especiales = {
+      11: 'ONCE', 12: 'DOCE', 13: 'TRECE', 14: 'CATORCE', 15: 'QUINCE',
+      16: 'DIECISEIS', 17: 'DIECISIETE', 18: 'DIECIOCHO', 19: 'DIECINUEVE',
+      21: 'VEINTIUNO', 22: 'VEINTIDOS', 23: 'VEINTITRES', 24: 'VEINTICUATRO',
+      25: 'VEINTICINCO', 26: 'VEINTISEIS', 27: 'VEINTISIETE', 28: 'VEINTIOCHO', 29: 'VEINTINUEVE'
+    };
+    const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+    function convertirGrupo(n) {
+      if (n === 0) return '';
+      let output = '';
+      const c = Math.floor(n / 100);
+      const restoC = n % 100;
+      if (c > 0) {
+        if (c === 1 && restoC === 0) {
+          output += 'CIEN ';
+        } else {
+          output += centenas[c] + ' ';
+        }
+      }
+      if (restoC > 0) {
+        if (especiales[restoC]) {
+          output += especiales[restoC] + ' ';
+        } else {
+          const d = Math.floor(restoC / 10);
+          const u = restoC % 10;
+          if (d > 0) {
+            output += decenas[d];
+            if (u > 0) output += ' Y ';
+          }
+          if (u > 0) {
+            output += unidades[u];
+          }
+          output += ' ';
+        }
+      }
+      return output.trim();
+    }
+
+    const entero = Math.floor(num);
+    const centavos = Math.round((num - entero) * 100);
+    const centavosStr = centavos.toString().padStart(2, '0') + '/100';
+
+    if (entero === 0) return `CERO ${centavosStr}`;
+
+    let texto = '';
+    const miles = Math.floor(entero / 1000);
+    const restoM = entero % 1000;
+
+    if (miles > 0) {
+      if (miles === 1) {
+        texto += 'MIL ';
+      } else {
+        texto += convertirGrupo(miles) + ' MIL ';
+      }
+    }
+    if (restoM > 0) {
+      texto += convertirGrupo(restoM);
+    }
+    return `${texto.trim()} ${centavosStr}`;
+  };
+
+  const imprimirFactura = (venta, detalles, cliente, payData) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    const fecha = new Date().toLocaleDateString('es-BO');
+    const facturaNro = venta.id_venta;
+    const total = venta.total;
+    const totalLetras = numeroALetras(total);
+    const efectivo = payData.method === 'efectivo' ? payData.amount : total;
+    const cambio = payData.method === 'efectivo' ? payData.change : 0;
+    let metodoPagoLabel = 'EFECTIVO';
+    if (payData.method === 'qr') {
+      metodoPagoLabel = 'QR';
+    } else if (payData.method === 'tarjeta_credito' || payData.method === 'tarjeta_debito') {
+      metodoPagoLabel = 'TARJETA';
+    }
+
+    const itemsHtml = detalles.map(item => {
+      const prod = productos.find(p => p.id_producto === item.id_producto) || {};
+      const sub = item.precio_unitario * item.cantidad;
+      return `
+        <tr>
+          <td style="text-align: left; padding: 4px 0;">${prod.nombre || 'Producto'}</td>
+          <td style="text-align: center; padding: 4px 0;">${item.cantidad}</td>
+          <td style="text-align: right; padding: 4px 0;">${formatCurrency(item.precio_unitario)}</td>
+          <td style="text-align: right; padding: 4px 0;">${formatCurrency(sub)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <html>
+        <head>
+          <title>Factura de Venta</title>
+          <style>
+            @page {
+              size: 80mm auto;
+              margin: 0;
+            }
+            body {
+              font-family: 'Courier New', Courier, monospace;
+              font-size: 11px;
+              color: #000;
+              width: 72mm;
+              margin: 0 auto;
+              padding: 10px 0;
+              text-align: center;
+            }
+            .bold { font-weight: bold; }
+            .header { margin-bottom: 10px; }
+            .divider { border-top: 1px dashed #000; margin: 8px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            th { border-bottom: 1px dashed #000; padding: 4px 0; font-weight: bold; }
+            .totals { text-align: right; margin-top: 10px; font-size: 11px; }
+            .totals-table { width: 100%; }
+            .totals-table td { padding: 2px 0; }
+            .footer { font-size: 9px; margin-top: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="bold" style="font-size: 13px;">MiniMarket El Papi</div>
+            <div>SUCURSAL 1</div>
+            <div>Av. Emilio Mendizabal #309</div>
+            <div>TELEFONO: 70333911</div>
+            <div>Sucre - Bolivia</div>
+            <div class="divider"></div>
+            <div class="bold">FACTURA</div>
+            <div>(Con derecho a Crédito Fiscal)</div>
+            <div>N.I.T.: 7569748015</div>
+            <div>FACTURA N°: ${facturaNro}</div>
+            <div class="divider"></div>
+            <div style="font-size: 9px;">VENTA DE UNA GRAN VARIEDAD DE PRODUCTOS</div>
+            <div class="divider"></div>
+          </div>
+          
+          <div style="text-align: left; font-size: 10px; line-height: 1.4;">
+            <div><span class="bold">FECHA:</span> ${fecha}</div>
+            <div><span class="bold">SEÑOR(S):</span> ${(cliente?.nombre || 'CLIENTE CASUAL').toUpperCase()}</div>
+            <div><span class="bold">NIT/CI:</span> ${cliente?.ci_ruc || '0'}</div>
+            <div><span class="bold">COD. CLIENTE:</span> ${cliente?.id_cliente || '0'}</div>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align: left; width: 45%;">Descripción</th>
+                <th style="text-align: center; width: 15%;">Cant.</th>
+                <th style="text-align: right; width: 20%;">P.unit</th>
+                <th style="text-align: right; width: 20%;">P. Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHtml}
+            </tbody>
+          </table>
+          
+          <div class="divider"></div>
+          
+          <div class="totals">
+            <table class="totals-table">
+              <tr>
+                <td style="text-align: left;" class="bold">SUB TOTAL</td>
+                <td style="text-align: right;">${formatCurrency(total)}</td>
+              </tr>
+              <tr>
+                <td style="text-align: left;" class="bold">TOTAL FACTURA</td>
+                <td style="text-align: right;" class="bold">${formatCurrency(total)}</td>
+              </tr>
+              <tr>
+                <td style="text-align: left;">${metodoPagoLabel}</td>
+                <td style="text-align: right;">${formatCurrency(efectivo)}</td>
+              </tr>
+              <tr>
+                <td style="text-align: left;">CAMBIO</td>
+                <td style="text-align: right;">${formatCurrency(cambio)}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div style="text-align: left; font-size: 10px; margin-top: 5px;">
+            <span class="bold">SON:</span> ${totalLetras.toUpperCase()}
+          </div>
+          
+          <div class="divider"></div>
+          
+          <div class="footer">
+            <div>Código de control: 27-24-1D-2A</div>
+            <div>Fecha límite de emisión: 14/09/2026</div>
+            <br>
+            <div class="bold">"ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO DE ÉSTA SERÁ SANCIONADO DE ACUERDO A LEY"</div>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  };
+
+  const handleFinalizarCompra = async (payData) => {
     if (cartItems.length === 0) {
       toast.error('El carrito de compras está vacío')
       return
@@ -216,7 +440,6 @@ export default function CajeroDashboard() {
 
     setLoading(true)
     try {
-      // Registrar la venta en base de datos
       const totalVenta = getTotal()
       
       const { data: venta, error: ventaError } = await supabase
@@ -226,7 +449,7 @@ export default function CajeroDashboard() {
           id_empleado: profile?.id_empleado || 1,
           total: totalVenta,
           tipo_entrega: 'tienda',
-          metodo_pago: metodoPago
+          metodo_pago: payData.method
         }])
         .select()
         .single()
@@ -265,11 +488,18 @@ export default function CajeroDashboard() {
           )
         } catch (lealtadError) {
           console.error('Error al registrar puntos:', lealtadError)
-          toast.error('Venta registrada pero hubo un error asignando puntos')
         }
       }
 
-      toast.success('¡Venta realizada correctamente!')
+      // Imprimir factura
+      try {
+        imprimirFactura(venta, detalles, selectedCliente, payData)
+      } catch (printError) {
+        console.error('Error al imprimir factura:', printError)
+        toast.error('Venta registrada pero hubo un problema al imprimir la factura')
+      }
+
+      toast.success('¡Venta registrada correctamente!')
       setCartItems([])
       setSelectedCliente(null)
       setSearchClienteTerm('')
@@ -279,6 +509,7 @@ export default function CajeroDashboard() {
       toast.error('Error al procesar la venta')
     } finally {
       setLoading(false)
+      setShowPaymentModal(false)
     }
   }
 
@@ -508,37 +739,15 @@ export default function CajeroDashboard() {
                 </div>
               </div>
 
-              {/* Selección del Método de Pago */}
-              <div>
-                <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">Método de Pago</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'efectivo', label: 'Efectivo', icon: DollarSign },
-                    { id: 'tarjeta', label: 'Tarjeta', icon: CreditCard },
-                    { id: 'qr', label: 'Código QR', icon: QrCode }
-                  ].map(m => {
-                    const Icon = m.icon
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => setMetodoPago(m.id)}
-                        className={`p-2 border rounded-lg flex flex-col items-center gap-1 transition-all ${
-                          metodoPago === m.id 
-                            ? 'border-blue-500 bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-300' 
-                            : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'
-                        }`}
-                      >
-                        <Icon size={18} />
-                        <span className="text-xs font-semibold">{m.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
               {/* Botón Finalizar */}
               <button
-                onClick={handleFinalizarCompra}
+                onClick={() => {
+                  if (cartItems.length === 0) {
+                    toast.error('El carrito de compras está vacío')
+                    return
+                  }
+                  setShowPaymentModal(true)
+                }}
                 disabled={loading || cartItems.length === 0}
                 className="btn btn-primary w-full py-3 flex items-center justify-center gap-2 text-base font-bold shadow-lg"
               >
@@ -549,6 +758,15 @@ export default function CajeroDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Modal de métodos de pago */}
+      {showPaymentModal && (
+        <PaymentMethodModal
+          total={getTotal()}
+          onClose={() => setShowPaymentModal(false)}
+          onConfirm={handleFinalizarCompra}
+        />
+      )}
     </Layout>
   )
 }
