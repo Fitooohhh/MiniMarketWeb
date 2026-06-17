@@ -30,11 +30,11 @@ export default function RegisterPage() {
     }
 
     if (formData.ci_ruc.length < 7) {
-      newErrors.ci_ruc = 'CI/RUC inválido'
+      newErrors.ci_ruc = 'CI inválido (mínimo 7 dígitos)'
     }
 
     if (formData.telefono.length < 8) {
-      newErrors.telefono = 'Teléfono inválido'
+      newErrors.telefono = 'Teléfono inválido (mínimo 8 dígitos)'
     }
 
     if (formData.password.length < 6) {
@@ -75,15 +75,28 @@ export default function RegisterPage() {
   }
 
   const handleChange = (e) => {
+    let { name, value } = e.target
+
+    if (name === 'nombre') {
+      // Solo letras y espacios
+      value = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '')
+    } else if (name === 'ci_ruc') {
+      // Solo números
+      value = value.replace(/\D/g, '')
+    } else if (name === 'telefono') {
+      // Solo números
+      value = value.replace(/\D/g, '')
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     })
     // Limpiar error del campo cuando el usuario empieza a escribir
-    if (errors[e.target.name]) {
+    if (errors[name]) {
       setErrors({
         ...errors,
-        [e.target.name]: '',
+        [name]: '',
       })
     }
   }
@@ -157,10 +170,10 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* CI/RUC */}
+             {/* CI */}
             <div>
               <label htmlFor="ci_ruc" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                CI/RUC
+                Cédula de Identidad (CI)
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -174,7 +187,7 @@ export default function RegisterPage() {
                   value={formData.ci_ruc}
                   onChange={handleChange}
                   className={`input pl-10 ${errors.ci_ruc ? 'border-red-500' : ''}`}
-                  placeholder="1234567890"
+                  placeholder="1234567"
                 />
               </div>
               {errors.ci_ruc && (
