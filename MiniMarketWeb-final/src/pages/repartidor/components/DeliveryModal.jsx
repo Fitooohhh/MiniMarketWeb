@@ -15,13 +15,11 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
   const directionsRendererRef = useRef(null)
   const fallbackPolylineRef = useRef(null)
   const routePathRef = useRef([])
-  const simulationIntervalRef = useRef(null)
   const isMapInitialized = useRef(false)
 
   const [currentLocation, setCurrentLocation] = useState(null)
   const [distance, setDistance] = useState(null)
   const [duration, setDuration] = useState(null)
-  const [isSimulating, setIsSimulating] = useState(false)
 
   // Deslizar el marcador suavemente
   const animateMarker = (marker, fromLat, fromLng, toLat, toLng) => {
@@ -182,7 +180,7 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
     if (navigator.geolocation) {
       watchId = navigator.geolocation.watchPosition(
         position => {
-          if (isMounted && !isSimulating) {
+          if (isMounted) {
             const newLat = position.coords.latitude
             const newLng = position.coords.longitude
             
@@ -220,11 +218,8 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
       if (watchId !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchId)
       }
-      if (simulationIntervalRef.current) {
-        clearInterval(simulationIntervalRef.current)
-      }
     }
-  }, [reparto, isSimulating])
+  }, [reparto])
 
   // Cargar script de Google Maps una vez
   useEffect(() => {
@@ -341,9 +336,9 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
     }
   }
 
-  // Recalcular ruta cuando la ubicación cambie y el mapa esté listo (solo si no la hemos calculado aún y no estamos simulando)
+  // Recalcular ruta cuando la ubicación cambie y el mapa esté listo (solo si no la hemos calculado aún)
   useEffect(() => {
-    if (isMapInitialized.current && currentLocation && window.google?.maps && !isSimulating) {
+    if (isMapInitialized.current && currentLocation && window.google?.maps) {
       if (routePathRef.current.length === 0) {
         const deliveryLocation = {
           lat: parseFloat(reparto.venta?.latitud) || -17.3895,
@@ -352,118 +347,9 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
         calculateRoute(currentLocation, deliveryLocation)
       }
     }
-  }, [currentLocation, isSimulating])
+  }, [currentLocation])
 
-  // Simulación de recorrido interactivo paso a paso
-  const startSimulation = () => {
-    if (routePathRef.current.length === 0) {
-      toast.error('No hay una ruta calculada para simular.')
-      return
-    }
 
-    setIsSimulating(true)
-    const staticPath = [...routePathRef.current]
-    let index = 0
-
-    if (simulationIntervalRef.current) {
-      clearInterval(simulationIntervalRef.current)
-    }
-
-    // Ocultar temporalmente el renderizador de direcciones nativas de Google para usar la polilínea recortable
-    if (directionsRendererRef.current) {
-      directionsRendererRef.current.setMap(null)
-    }
-
-    // Asegurar que la polilínea esté dibujada e inicializada en el mapa
-    if (window.google?.maps && mapInstance.current) {
-      if (fallbackPolylineRef.current) {
-        fallbackPolylineRef.current.setMap(null)
-      }
-      fallbackPolylineRef.current = new window.google.maps.Polyline({
-        path: staticPath,
-        geodesic: true,
-        strokeColor: '#3b82f6', // Azul premium PedidosYa
-        strokeOpacity: 0.8,
-        strokeWeight: 6,
-        map: mapInstance.current,
-      })
-    }
-
-    // Valores iniciales de distancia y duración para calcular proporcionalmente el restante
-    const originalDistanceText = distance || ""
-    const originalDurationText = duration || ""
-    const originalDistanceNum = parseFloat(originalDistanceText) || 1.5
-    const originalDurationNum = parseFloat(originalDurationText) || 5
-
-    simulationIntervalRef.current = setInterval(() => {
-      if (index >= staticPath.length) {
-        clearInterval(simulationIntervalRef.current)
-        setIsSimulating(false)
-        
-        // Simular llegada perfecta al destino
-        const deliveryLocation = {
-          lat: parseFloat(reparto.venta?.latitud) || -17.3895,
-          lng: parseFloat(reparto.venta?.longitud) || -66.1568,
-        }
-        
-        setCurrentLocation(deliveryLocation)
-        if (currentMarkerRef.current) {
-          currentMarkerRef.current.setPosition(new window.google.maps.LatLng(deliveryLocation.lat, deliveryLocation.lng))
-        }
-        if (fallbackPolylineRef.current) {
-          fallbackPolylineRef.current.setPath([])
-        }
-        setDistance("0.0 km")
-        setDuration("0 min")
-
-        toast.success('¡Reparto entregado con éxito (Simulación)!')
-        return
-      }
-
-      const nextPos = staticPath[index]
-
-      // Acortar el trazado azul de la polilínea en el mapa
-      if (fallbackPolylineRef.current) {
-        const remainingPath = staticPath.slice(index)
-        fallbackPolylineRef.current.setPath(remainingPath)
-      }
-
-      // Deslizar el marcador suavemente al siguiente punto de la calle
-      setCurrentLocation(prev => {
-        if (prev && currentMarkerRef.current) {
-          animateMarker(currentMarkerRef.current, prev.lat, prev.lng, nextPos.lat, nextPos.lng)
-        }
-        return nextPos
-      })
-
-      // Calcular distancia y tiempo restantes estimados proporcionalmente
-      const progressRatio = (staticPath.length - index) / staticPath.length
-      const remainingDistance = originalDistanceNum * progressRatio
-      const remainingDuration = Math.ceil(originalDurationNum * progressRatio)
-      
-      setDistance(`${remainingDistance.toFixed(1)} km`)
-      setDuration(`${remainingDuration} min`)
-
-      index++
-    }, 1500) // Actualiza la posición cada 1.5 segundos para animación fluida
-  }
-
-  const stopSimulation = () => {
-    if (simulationIntervalRef.current) {
-      clearInterval(simulationIntervalRef.current)
-    }
-    setIsSimulating(false)
-
-    // Restaurar DirectionsRenderer si existe y limpiar polilínea de simulación
-    if (directionsRendererRef.current && mapInstance.current) {
-      directionsRendererRef.current.setMap(mapInstance.current)
-    }
-    if (fallbackPolylineRef.current) {
-      fallbackPolylineRef.current.setMap(null)
-    }
-
-    toast.success('Simulación detenida')
-  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -571,17 +457,7 @@ export default function DeliveryModal({ reparto, onClose, onDelivered }) {
               </button>
             </div>
             
-            <button
-              onClick={isSimulating ? stopSimulation : startSimulation}
-              className={`w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                isSimulating 
-                  ? 'bg-red-500 hover:bg-red-600 text-white' 
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
-              }`}
-            >
-              <Navigation className={`w-5 h-5 ${isSimulating ? 'animate-pulse' : ''}`} />
-              {isSimulating ? 'Detener Simulación' : 'Simular Recorrido (Test de Movimiento)'}
-            </button>
+
           </div>
 
           {/* Nota */}
