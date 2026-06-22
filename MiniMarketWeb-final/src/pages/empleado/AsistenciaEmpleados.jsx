@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { 
   Users, Calendar, Clock, Search, Filter, Download, 
-  Tag, Star, RotateCcw, DollarSign, Settings, Plus
+  Tag, Star, RotateCcw, DollarSign, Settings, Plus, Shield
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import { supabase } from '../../lib/supabase'
@@ -12,9 +12,8 @@ import toast from 'react-hot-toast'
 // Importar componentes de pestañas
 import PromocionesTab from './tabs/PromocionesTab'
 import LealtadTab from './tabs/LealtadTab'
-import DevolucionesTab from './tabs/DevolucionesTab'
 import TurnosTab from './tabs/TurnosTab'
-import NominaTab from './tabs/NominaTab'
+import GeofencingTab from './tabs/GeofencingTab'
 
 export default function AsistenciaEmpleados() {
   const [activeTab, setActiveTab] = useState('asistencia')
@@ -126,11 +125,7 @@ export default function AsistenciaEmpleados() {
 
   const tabs = [
     { id: 'asistencia', label: 'Asistencia', icon: Clock },
-    { id: 'promociones', label: 'Promociones', icon: Tag },
-    { id: 'lealtad', label: 'Programa Lealtad', icon: Star },
-    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw },
-    { id: 'turnos', label: 'Gestión Turnos', icon: Calendar },
-    { id: 'nomina', label: 'Nómina', icon: DollarSign },
+    { id: 'geofencing', label: 'Geo-fencing', icon: Shield },
   ]
 
   return (
@@ -380,16 +375,12 @@ export default function AsistenciaEmpleados() {
               <LealtadTab profile={{ id_empleado: 1 }} />
             )}
 
-            {activeTab === 'devoluciones' && (
-              <DevolucionesTab profile={{ id_empleado: 1 }} />
-            )}
-
-            {activeTab === 'turnos' && (
+             {activeTab === 'turnos' && (
               <TurnosTab profile={{ id_empleado: 1 }} />
             )}
 
-            {activeTab === 'nomina' && (
-              <NominaTab profile={{ id_empleado: 1 }} />
+            {activeTab === 'geofencing' && (
+              <GeofencingTab />
             )}
           </div>
         </div>

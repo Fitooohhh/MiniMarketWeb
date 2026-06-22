@@ -6,6 +6,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { format, startOfMonth, endOfMonth } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { verificarGeofencing } from '../../lib/geofencing'
 
 export default function EmpleadoAsistencia() {
   const { profile } = useAuthStore()
@@ -66,13 +67,29 @@ export default function EmpleadoAsistencia() {
       if (navigator.geolocation) {
         try {
           const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject)
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
           })
           latitud = position.coords.latitude
           longitud = position.coords.longitude
         } catch (error) {
           console.log('No se pudo obtener ubicación:', error)
+          toast.error('No se pudo obtener tu ubicación GPS para verificar el Geo-fencing. Activa la ubicación.')
+          setRegistrando(false)
+          return
         }
+      } else {
+        toast.error('Tu navegador no soporta geolocalización.')
+        setRegistrando(false)
+        return
+      }
+
+      // Verificar geofencing
+      try {
+        verificarGeofencing(latitud, longitud)
+      } catch (geoError) {
+        toast.error(geoError.message)
+        setRegistrando(false)
+        return
       }
 
       const { error } = await supabase
@@ -91,7 +108,7 @@ export default function EmpleadoAsistencia() {
       loadAsistencia()
     } catch (error) {
       console.error('Error marking entrada:', error)
-      toast.error('Error al registrar entrada')
+      toast.error(error.message || 'Error al registrar entrada')
     } finally {
       setRegistrando(false)
     }
@@ -108,13 +125,29 @@ export default function EmpleadoAsistencia() {
       if (navigator.geolocation) {
         try {
           const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject)
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
           })
           latitud = position.coords.latitude
           longitud = position.coords.longitude
         } catch (error) {
           console.log('No se pudo obtener ubicación:', error)
+          toast.error('No se pudo obtener tu ubicación GPS para verificar el Geo-fencing. Activa la ubicación.')
+          setRegistrando(false)
+          return
         }
+      } else {
+        toast.error('Tu navegador no soporta geolocalización.')
+        setRegistrando(false)
+        return
+      }
+
+      // Verificar geofencing
+      try {
+        verificarGeofencing(latitud, longitud)
+      } catch (geoError) {
+        toast.error(geoError.message)
+        setRegistrando(false)
+        return
       }
 
       const { error } = await supabase
@@ -130,7 +163,7 @@ export default function EmpleadoAsistencia() {
       loadAsistencia()
     } catch (error) {
       console.error('Error marking salida:', error)
-      toast.error('Error al registrar salida')
+      toast.error(error.message || 'Error al registrar salida')
     } finally {
       setRegistrando(false)
     }

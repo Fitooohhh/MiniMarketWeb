@@ -60,6 +60,19 @@ class PromocionesService {
     return data
   }
 
+  // Actualizar promoción existente
+  async actualizarPromocion(idPromocion, promocion) {
+    const { data, error } = await supabase
+      .from('promocion_avanzada')
+      .update(promocion)
+      .eq('id_promocion', idPromocion)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+
   // Agregar productos a promoción
   async agregarProductosPromocion(idPromocion, productos) {
     const { data, error } = await supabase

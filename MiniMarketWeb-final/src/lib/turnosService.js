@@ -36,7 +36,6 @@ class TurnosService {
       .gte('fecha', fechaInicio)
       .lte('fecha', fechaFin)
       .order('fecha', { ascending: true })
-      .order('tipo_turno.hora_inicio', { ascending: true })
 
     if (idEmpleado) {
       query = query.eq('id_empleado', idEmpleado)
@@ -44,6 +43,16 @@ class TurnosService {
 
     const { data, error } = await query
     if (error) throw error
+
+    if (data && Array.isArray(data)) {
+      data.sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha.localeCompare(b.fecha)
+        const startA = a.tipo_turno?.hora_inicio || ''
+        const startB = b.tipo_turno?.hora_inicio || ''
+        return startA.localeCompare(startB)
+      })
+    }
+
     return data
   }
 

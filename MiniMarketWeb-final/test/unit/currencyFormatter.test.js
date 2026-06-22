@@ -5,6 +5,18 @@ import {
   formatCurrencyValue
 } from '../../src/lib/currencyFormatter'
 
+/**
+ * ============================================================================
+ * PRUEBAS UNITARIAS (TEMA 1)
+ * ============================================================================
+ * 
+ * Permiten comprobar matemáticamente que los principios SRP y DRY funcionan:
+ * 1. Garantiza que la única responsabilidad (SRP) del formateador retorne siempre
+ *    los formatos correctos bajo cualquier escenario (monto nulo, decimales, negativos).
+ * 2. Comprueba que el cambio en un solo lugar (DRY) no rompa ninguna otra
+ *    parte dependiente del sistema.
+ * ============================================================================
+ */
 describe('currencyFormatter - Pruebas Unitarias', () => {
 
   // CASO 1: Formatear monto positivo con símbolo

@@ -16,10 +16,35 @@
     app_dir:          "/opt/minimarket"
     frontend_dir:     "/opt/minimarket/MiniMarketWeb-final"
     server_dir:       "/opt/minimarket/server"
-    supabase_url:     "https://izfxvtasfylqalgnkwia.supabase.co"
-    supabase_anon_key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml6Znh2dGFzZnlscWFsZ25rd2lhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA0MDgwMTQsImV4cCI6MjA3NTk4NDAxNH0.4BkYsJAc7bL4966_oUljaDX7Nr6Ni4jl7Gm0Q35fNrE"
 
   tasks:
+
+    # ----------------------------------------------------------
+    # BLOQUE 0: Cargar credenciales desde .env externo
+    # ----------------------------------------------------------
+
+    - name: Verificar si existe el archivo .env de credenciales externas
+      stat:
+        path: /vagrant/.env
+      register: dotenv_stat
+
+    - name: Validar existencia de .env
+      fail:
+        msg: "El archivo 'infra/.env' no existe en el host. Por favor créalo con las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY antes de levantar la VM."
+      when: not dotenv_stat.stat.exists
+
+    - name: Cargar VITE_SUPABASE_URL desde /vagrant/.env
+      shell: grep "^VITE_SUPABASE_URL=" /vagrant/.env | cut -d'=' -f2-
+      register: ext_supabase_url
+
+    - name: Cargar VITE_SUPABASE_ANON_KEY desde /vagrant/.env
+      shell: grep "^VITE_SUPABASE_ANON_KEY=" /vagrant/.env | cut -d'=' -f2-
+      register: ext_supabase_anon_key
+
+    - name: Establecer variables de Supabase como facts
+      set_fact:
+        supabase_url: "{{ ext_supabase_url.stdout }}"
+        supabase_anon_key: "{{ ext_supabase_anon_key.stdout }}"
 
     # ----------------------------------------------------------
     # BLOQUE 1: Paquetes del sistema

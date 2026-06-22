@@ -13,9 +13,6 @@ import toast from 'react-hot-toast'
 // Importar componentes de pestañas
 import PromocionesTab from './tabs/PromocionesTab'
 import LealtadTab from './tabs/LealtadTab'
-import DevolucionesTab from './tabs/DevolucionesTab'
-import TurnosTab from './tabs/TurnosTab'
-import NominaTab from './tabs/NominaTab'
 
 export default function Productos() {
   const [activeTab, setActiveTab] = useState('productos')
@@ -279,9 +276,6 @@ export default function Productos() {
     { id: 'productos', label: 'Productos', icon: Package },
     { id: 'promociones', label: 'Promociones', icon: Tag },
     { id: 'lealtad', label: 'Programa Lealtad', icon: Star },
-    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw },
-    { id: 'turnos', label: 'Gestión Turnos', icon: Calendar },
-    { id: 'nomina', label: 'Nómina', icon: Users },
   ]
 
   return (
@@ -300,9 +294,9 @@ export default function Productos() {
           {activeTab === 'productos' && (
             <button
               onClick={() => setShowModal(true)}
-              className="btn-primary flex items-center"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm font-semibold shadow-sm"
             >
-              <Plus className="w-5 h-5 mr-2" />
+              <Plus className="w-4 h-4" />
               Nuevo Producto
             </button>
           )}
@@ -494,17 +488,9 @@ export default function Productos() {
               <LealtadTab profile={{ id_empleado: 1 }} />
             )}
 
-            {activeTab === 'devoluciones' && (
-              <DevolucionesTab profile={{ id_empleado: 1 }} />
-            )}
 
-            {activeTab === 'turnos' && (
-              <TurnosTab profile={{ id_empleado: 1 }} />
-            )}
 
-            {activeTab === 'nomina' && (
-              <NominaTab profile={{ id_empleado: 1 }} />
-            )}
+
           </div>
         </div>
 

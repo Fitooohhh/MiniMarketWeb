@@ -1,6 +1,20 @@
 /**
- * Utilidades para formatear moneda en Bolivianos (Bs)
+ * ============================================================================
+ * PRINCIPIOS DE PROGRAMACIÓN - TEMA 1
+ * ============================================================================
+ * 
+ * 1. SRP (Single Responsibility Principle - Principio de Responsabilidad Única):
+ *    Esta utilidad tiene la única y exclusiva responsabilidad de formatear valores
+ *    numéricos a la representación de moneda nacional (Bolivianos - Bs). Si las reglas
+ *    de presentación de moneda cambian, esta es la única clase/módulo que debe ser modificado.
+ * 
+ * 2. DRY (Don't Repeat Yourself - No te repitas):
+ *    Centraliza el formato visual de los precios en todo el sistema. Evita duplicar 
+ *    operaciones matemáticas de redondeo y concatenación de cadenas de texto en los 
+ *    distintos componentes de la interfaz de usuario (como el Catálogo de Clientes, etc.).
+ * ============================================================================
  */
+
 
 /**
  * Formatea un número como moneda en Bolivianos

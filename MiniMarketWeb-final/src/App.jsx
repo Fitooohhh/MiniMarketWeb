@@ -27,7 +27,6 @@ import AdminPromociones from './pages/admin/Promociones'
 import AdminLealtad from './pages/admin/Lealtad'
 import AdminDevoluciones from './pages/admin/Devoluciones'
 import AdminTurnos from './pages/admin/Turnos'
-import AdminNomina from './pages/admin/Nomina'
 import ClienteDashboard from './pages/cliente/Dashboard'
 import ClienteCatalogo from './pages/cliente/Catalogo'
 import ClienteCarrito from './pages/cliente/Carrito'
@@ -119,11 +118,7 @@ function App() {
             <Navigate to="/empleado/asistencia-empleados" replace />
           </ProtectedRoute>
         } />
-        <Route path="/admin/nomina" element={
-          <ProtectedRoute requireEmpleado>
-            <Navigate to="/empleado/usuarios" replace />
-          </ProtectedRoute>
-        } />
+
         
         {/* Rutas de empleados */}
         <Route path="/empleado" element={
@@ -179,6 +174,11 @@ function App() {
         <Route path="/empleado/devoluciones" element={
           <ProtectedRoute requireEmpleado>
             <EmpleadoDevoluciones />
+          </ProtectedRoute>
+        } />
+        <Route path="/empleado/reportes" element={
+          <ProtectedRoute requireEmpleado>
+            <AdminDashboard />
           </ProtectedRoute>
         } />
         <Route path="/cajero" element={

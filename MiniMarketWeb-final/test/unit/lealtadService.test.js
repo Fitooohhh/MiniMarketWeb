@@ -1,5 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 
+/**
+ * ============================================================================
+ * PRUEBAS UNITARIAS Y MOCKS (TEMA 1)
+ * ============================================================================
+ * 
+ * Las pruebas unitarias defienden las reglas de negocio del programa de lealtad:
+ * 1. MOCKING (Aislamiento): Se mockea la conexión a base de datos de Supabase.
+ *    Esto evita realizar llamadas reales a la base de datos de producción durante
+ *    las pruebas, cumpliendo con el principio de aislamiento de componentes (Capas).
+ * 2. DETERMINISMO: Garantiza que la lógica de cálculo de puntos (`calcularPuntosCompra`) 
+ *    sea determinística (siempre retorne el mismo resultado exacto para la misma entrada)
+ *    y maneje correctamente casos de borde y redondeos sin alterar el comportamiento global.
+ * ============================================================================
+ */
 vi.mock('../../src/lib/supabase', () => ({
   supabase: {
     from: vi.fn().mockReturnThis(),

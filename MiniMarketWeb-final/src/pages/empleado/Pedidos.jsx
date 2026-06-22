@@ -140,18 +140,18 @@ export default function EmpleadoPedidos() {
                       <div className="flex items-center text-gray-600 dark:text-gray-400">
                         <MapPin className="w-4 h-4 mr-2" />
                         <span className="font-medium mr-2">Cliente:</span>
-                        {pedido.cliente_nombre}
+                        {pedido.cliente?.nombre || 'Desconocido'}
                       </div>
-                      {pedido.cliente_telefono && (
+                      {pedido.cliente?.telefono && (
                         <div className="flex items-center text-gray-600 dark:text-gray-400">
                           <Phone className="w-4 h-4 mr-2" />
-                          {pedido.cliente_telefono}
+                          {pedido.cliente?.telefono}
                         </div>
                       )}
-                      {pedido.tipo_entrega === 'domicilio' && pedido.direccion_entrega && (
+                      {(pedido.tipo_entrega === 'domicilio' || pedido.direccion_envio) && (
                         <div className="flex items-start text-gray-600 dark:text-gray-400">
                           <MapPin className="w-4 h-4 mr-2 mt-0.5" />
-                          <span>{pedido.direccion_entrega}</span>
+                          <span>{pedido.direccion_envio || pedido.cliente?.direccion || 'Sin dirección registrada'}</span>
                         </div>
                       )}
                       <div className="text-gray-500 dark:text-gray-500">

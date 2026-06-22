@@ -73,7 +73,8 @@ if (useMock) {
     turnos: [
       { id_turno: 1, id_empleado: 2, dia_semana: 'Lunes', hora_inicio: '08:00', hora_fin: '16:00' },
       { id_turno: 2, id_empleado: 2, dia_semana: 'Martes', hora_inicio: '08:00', hora_fin: '16:00' }
-    ]
+    ],
+    reporte: []
   };
 
   // Inicializar Base de Datos local

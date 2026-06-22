@@ -49,10 +49,18 @@ export default function ClienteDashboard() {
         .eq('id_cliente', profile.id_cliente)
 
       const { data: promocionesData } = await supabase
-        .from('promocion')
-        .select('*, producto:id_producto(*)')
-        .lte('fecha_inicio', new Date().toISOString())
-        .gte('fecha_fin', new Date().toISOString())
+        .from('promocion_avanzada')
+        .select(`
+          *,
+          promocion_detalle (
+            id_producto,
+            precio_especial,
+            producto:producto (id_producto, nombre, precio, imagen_url)
+          )
+        `)
+        .eq('activa', true)
+        .lte('fecha_inicio', new Date().toISOString().split('T')[0])
+        .gte('fecha_fin', new Date().toISOString().split('T')[0])
         .limit(3)
 
       // Cargar datos de lealtad
@@ -89,15 +97,47 @@ export default function ClienteDashboard() {
         .order('id_devolucion_detalle', { ascending: false })
 
       // Formatear datos
-      const promocionesFormateadas = promocionesData?.map(promo => ({
-        id: promo.id_promocion,
-        producto_nombre: promo.producto?.nombre || 'Producto',
-        precio_original: promo.producto?.precio || 0,
-        precio_con_descuento: (promo.producto?.precio * (1 - promo.descuento / 100)).toFixed(2),
-        descuento_porcentaje: promo.descuento,
-        imagen_url: promo.producto?.imagen_url,
-        promocion_nombre: `Descuento ${promo.descuento}%`
-      })) || []
+      const promocionesFormateadas = promocionesData?.map(promo => {
+        const primerDetalle = promo.promocion_detalle?.[0]
+        const prod = primerDetalle?.producto
+        
+        let precioOriginal = null
+        let precioConDescuento = '0.00'
+        let descPorc = promo.descuento_porcentaje || 0
+
+        if (prod) {
+          precioOriginal = prod.precio
+          if (primerDetalle?.precio_especial) {
+            precioConDescuento = parseFloat(primerDetalle.precio_especial).toFixed(2)
+            descPorc = Math.round((1 - (parseFloat(primerDetalle.precio_especial) / prod.precio)) * 100)
+          } else if (promo.descuento_porcentaje) {
+            precioConDescuento = (prod.precio * (1 - promo.descuento_porcentaje / 100)).toFixed(2)
+          } else if (promo.monto_descuento) {
+            precioConDescuento = Math.max(0, prod.precio - promo.monto_descuento).toFixed(2)
+            descPorc = Math.round((promo.monto_descuento / prod.precio) * 100)
+          }
+        } else {
+          // Promoción general
+          if (promo.descuento_porcentaje) {
+            precioConDescuento = `${promo.descuento_porcentaje}% de desc.`
+          } else if (promo.monto_descuento) {
+            precioConDescuento = `Bs ${promo.monto_descuento.toFixed(2)} de desc.`
+          } else {
+            precioConDescuento = promo.tipo.toUpperCase()
+          }
+        }
+
+        return {
+          id: promo.id_promocion,
+          producto_nombre: prod?.nombre || promo.nombre,
+          precio_original: precioOriginal,
+          precio_con_descuento: precioConDescuento,
+          descuento_porcentaje: descPorc,
+          imagen_url: prod?.imagen_url,
+          promocion_nombre: promo.nombre,
+          descripcion: promo.descripcion || promo.condiciones || 'Promoción especial de la tienda'
+        }
+      }) || []
 
       setStats({
         pedidosActivos: ventasActivas?.length || 0,
@@ -173,7 +213,6 @@ export default function ClienteDashboard() {
   const tabs = [
     { id: 'inicio', label: 'Inicio', icon: ShoppingBag },
     { id: 'lealtad', label: 'Mi Lealtad', icon: Star },
-    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw },
   ]
 
   const devolucionesFiltradas = devoluciones.filter(devolucion => {
@@ -291,25 +330,42 @@ export default function ClienteDashboard() {
                               </div>
                             )}
                             
-                            <div className="absolute top-2 right-2">
-                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-600 text-white">
-                                -{promo.descuento_porcentaje}%
-                              </span>
-                            </div>
+                            {promo.descuento_porcentaje > 0 && (
+                              <div className="absolute top-2 right-2">
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-red-600 text-white">
+                                  -{promo.descuento_porcentaje}%
+                                </span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="p-4">
-                            <h3 className="font-medium text-gray-900 dark:text-white mb-2">
-                              {promo.producto_nombre}
-                            </h3>
-                            <div className="flex justify-between items-center">
+                          <div className="p-4 flex flex-col justify-between flex-1">
+                            <div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
+                                {promo.producto_nombre}
+                              </h3>
+                              {promo.descripcion && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
+                                  {promo.descripcion}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex justify-between items-center mt-auto">
                               <div>
-                                <p className="text-sm text-gray-500 line-through">
-                                  ${promo.precio_original}
-                                </p>
-                                <p className="text-lg font-bold text-green-600">
-                                  ${promo.precio_con_descuento}
-                                </p>
+                                {promo.precio_original ? (
+                                  <>
+                                    <p className="text-xs text-gray-500 line-through">
+                                      Bs {promo.precio_original.toFixed(2)}
+                                    </p>
+                                    <p className="text-lg font-bold text-green-600">
+                                      Bs {promo.precio_con_descuento}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-lg font-bold text-green-600">
+                                    {promo.precio_con_descuento}
+                                  </p>
+                                )}
                               </div>
                               <Link
                                 to="/cliente/catalogo"
@@ -504,109 +560,6 @@ export default function ClienteDashboard() {
                 </div>
               )
             })()}
-
-
-            {activeTab === 'devoluciones' && (
-              <div>
-                {/* Filtros */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Buscar devoluciones..."
-                          value={busqueda}
-                          onChange={(e) => setBusqueda(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Filter className="w-5 h-5 text-gray-400" />
-                      <select
-                        value={filtroEstado}
-                        onChange={(e) => setFiltroEstado(e.target.value)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="todos">Todos los estados</option>
-                        <option value="pendiente">Pendientes</option>
-                        <option value="aprobada">Aprobadas</option>
-                        <option value="rechazada">Rechazadas</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Lista de devoluciones */}
-                <div className="space-y-4">
-                  {loading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div key={i} className="card animate-pulse">
-                          <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : devolucionesFiltradas.length > 0 ? (
-                    devolucionesFiltradas.map((devolucion) => (
-                      <div key={devolucion.id_devolucion_detalle} className="card">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">
-                              {devolucion.detalle_venta.producto.nombre}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                              Pedido #{devolucion.detalle_venta.venta.id_venta} - 
-                              {new Date(devolucion.detalle_venta.venta.fecha).toLocaleDateString()}
-                            </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              Cantidad: {devolucion.cantidad_devuelta} unidades
-                            </p>
-                            {devolucion.motivo && (
-                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                Motivo: {devolucion.motivo}
-                              </p>
-                            )}
-                          </div>
-                          
-                          <div className="text-right">
-                            <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                              devolucion.estado === 'pendiente' 
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : devolucion.estado === 'aprobada'
-                                ? 'bg-green-100 text-green-800'
-                                : devolucion.estado === 'rechazada'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {devolucion.estado.charAt(0).toUpperCase() + devolucion.estado.slice(1)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <RotateCcw className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                        {busqueda || filtroEstado !== 'todos' 
-                          ? 'No hay devoluciones que coincidan' 
-                          : 'No hay devoluciones'
-                        }
-                      </h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {busqueda || filtroEstado !== 'todos' 
-                          ? 'Intenta ajustar los filtros de búsqueda'
-                          : 'No tienes solicitudes de devolución registradas'
-                        }
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

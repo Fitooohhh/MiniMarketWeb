@@ -517,6 +517,12 @@
       border: 1px solid rgba(251, 146, 60, .3);
     }
 
+    .badge-tema1 {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid rgba(16, 216, 126, .3);
+    }
+
     .suite-stats {
       display: flex;
       align-items: center;
@@ -877,6 +883,13 @@
         </span>
         <span class="sidebar-count pill-gray" id="countPerformance">—</span>
       </a>
+      <a class="sidebar-item" href="#tema1" onclick="filterSuite('tema1')">
+        <span class="sidebar-item-left">
+          <span class="sidebar-dot" style="background:#10d87e"></span>
+          Tema 1 — Pruebas de lo nuevo
+        </span>
+        <span class="sidebar-count pill-gray" id="countTema1">—</span>
+      </a>
 
       <div class="sidebar-title" style="margin-top:16px">Iconos</div>
       <div style="padding:4px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text-2)">
@@ -958,6 +971,55 @@
     // Esta es la definición de todas tus suites y casos de prueba
     // Se cargan los resultados reales cuando ejecutas
     const TEST_SUITES = [
+      {
+        id: 'tema1-principios',
+        type: 'tema1',
+        icon: '📘',
+        name: 'Tema 1 — Pruebas de lo nuevo implementado (SOLID / DRY / YAGNI)',
+        file: 'test/unit/{currencyFormatter,lealtadService}.test.js',
+        groups: [
+          {
+            name: 'currencyFormatter - Pruebas Unitarias',
+            tests: [
+              { name: 'U-01: formatCurrency formatea monto positivo con símbolo Bs' },
+              { name: 'U-02: formatCurrency retorna solo el número cuando includeSymbol es false' },
+              { name: 'U-03: formatCurrency retorna Bs 0.00 cuando el monto es null' },
+              { name: 'U-04: formatCurrency retorna Bs 0.00 cuando el monto es undefined' },
+              { name: 'U-05: formatCurrency maneja decimales correctamente' },
+              { name: 'U-06: formatCurrency maneja monto cero' },
+              { name: 'U-07: formatCurrencyNoDecimals redondea y elimina decimales' },
+              { name: 'U-08: formatCurrencyNoDecimals retorna Bs 0 con null' },
+              { name: 'U-09: formatCurrencyValue retorna valor sin símbolo Bs' },
+              { name: 'U-10: formatCurrency maneja montos negativos' },
+              { name: 'U-11: formatCurrency convierte string numérico correctamente' },
+              { name: 'U-12: formatCurrency maneja montos grandes' },
+              { name: 'U-13: formatCurrencyNoDecimals redondea hacia abajo cuando decimal < 0.5' },
+              { name: 'U-14: formatCurrencyNoDecimals retorna Bs 0 con undefined' },
+              { name: 'U-15: formatCurrency muestra exactamente dos decimales' },
+            ]
+          },
+          {
+            name: 'LealtadService - Pruebas Unitarias (calcularPuntosCompra)',
+            tests: [
+              { name: 'U-01: calcularPuntosCompra retorna 50 puntos para 100 Bs' },
+              { name: 'U-02: calcularPuntosCompra retorna 0 para compra de 0' },
+              { name: 'U-03: calcularPuntosCompra redondea correctamente con decimal >= 0.5' },
+              { name: 'U-04: calcularPuntosCompra redondea correctamente con decimal < 0.5' },
+              { name: 'U-05: calcularPuntosCompra maneja montos grandes' },
+              { name: 'U-06: calcularPuntosCompra maneja montos con decimales' },
+              { name: 'U-07: calcularPuntosCompra retorna 1 para monto de 2 Bs' },
+              { name: 'U-08: calcularPuntosCompra retorna 1 para monto de 1 Bs (redondeo)' },
+              { name: 'U-09: calcularPuntosCompra es determinístico' },
+              { name: 'U-10: calcularPuntosCompra mantiene relación lineal (doble monto = doble puntos)' },
+              { name: 'U-11: calcularPuntosCompra siempre retorna un número entero' },
+              { name: 'U-12: calcularPuntosCompra con múltiplos de 2 retorna exactamente la mitad' },
+              { name: 'U-13: calcularPuntosCompra retorna 25 para monto de 50 Bs' },
+              { name: 'U-14: calcularPuntosCompra es proporcional: 10 Bs = 5 puntos' },
+              { name: 'U-15: calcularPuntosCompra redondea 1.5 a 2 puntos' },
+            ]
+          }
+        ]
+      },
       {
         id: 'system',
         type: 'system',
@@ -1356,6 +1418,7 @@
         system: { cls: 'badge-system', label: 'Sistema' },
         integration: { cls: 'badge-integration', label: 'Integración' },
         performance: { cls: 'badge-performance', label: 'Rendimiento' },
+        tema1: { cls: 'badge-tema1', label: 'Tema 1' },
       }
       const badge = typeMap[suite.type]
 
@@ -1465,10 +1528,12 @@
       const sysTests = TEST_SUITES.filter(s => s.type === 'system').flatMap(s => s.groups.flatMap(g => g.tests))
       const intTests = TEST_SUITES.filter(s => s.type === 'integration').flatMap(s => s.groups.flatMap(g => g.tests))
       const perfTests = TEST_SUITES.filter(s => s.type === 'performance').flatMap(s => s.groups.flatMap(g => g.tests))
+      const tema1Tests = TEST_SUITES.filter(s => s.type === 'tema1').flatMap(s => s.groups.flatMap(g => g.tests))
       document.getElementById('countAll').textContent = total
       document.getElementById('countSystem').textContent = sysTests.length
       document.getElementById('countIntegration').textContent = intTests.length
       document.getElementById('countPerformance').textContent = perfTests.length
+      document.getElementById('countTema1').textContent = tema1Tests.length
     }
 
     function attachToggleListeners() {
@@ -1600,45 +1665,88 @@
       return true // Cambia a false para simular fallos
     }
 
-    /* Carga resultados desde JSON de vitest (--reporter=json) */
-    function loadVitestJSON(json) {
-      const results = {}
-      if (!json.testResults) return
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+    function buildSuitesFromJSON(json) {
+      const suites = []
+      if (!json.testResults) return suites
+
       json.testResults.forEach(file => {
-        const suiteId = guesssuiteId(file.testFilePath)
-        file.testResults?.forEach(t => {
-          // mapea por nombre aproximado
+        const relativePath = file.name.replace(/\\/g, '/').split('/MiniMarketWeb-final/')[1] || file.name.replace(/\\/g, '/')
+        
+        let type = 'system'
+        let icon = '🔬'
+        let name = relativePath.split('/').pop().replace('.test.js', '').replace('.test.jsx', '')
+        
+        if (relativePath.includes('test/unit/currencyFormatter') || relativePath.includes('test/unit/lealtadService')) {
+          type = 'tema1'
+          icon = '📘'
+          name = 'Tema 1 — ' + name
+        } else if (relativePath.includes('test/unit/')) {
+          type = 'system'
+          icon = '🧪'
+          name = 'Unitaria — ' + name
+        } else if (relativePath.includes('test/integration/')) {
+          type = 'integration'
+          icon = '🔀'
+          name = 'Integración — ' + name
+        } else if (relativePath.includes('test/performance/')) {
+          type = 'performance'
+          icon = '⚡'
+          name = 'Rendimiento — ' + name
+        } else if (relativePath.includes('test/e2e/')) {
+          type = 'system'
+          icon = '🖥️'
+          name = 'E2E — ' + name
+        }
+        
+        const groupsMap = {}
+        file.assertionResults.forEach(art => {
+          const describeName = art.ancestorTitles[0] || 'Pruebas Generales'
+          if (!groupsMap[describeName]) {
+            groupsMap[describeName] = []
+          }
+          groupsMap[describeName].push({ name: art.title })
+        })
+        
+        const groups = Object.keys(groupsMap).map(gName => ({
+          name: gName,
+          tests: groupsMap[gName]
+        }))
+        
+        suites.push({
+          id: relativePath.replace(/[^a-zA-Z0-9]/g, '-'),
+          type,
+          icon,
+          name,
+          file: relativePath,
+          groups
         })
       })
-      window._vitestResults = results
-      showToast('Resultados de vitest cargados', 'success')
-      renderAll()
+      
+      suites.sort((a, b) => {
+        if (a.type === 'tema1' && b.type !== 'tema1') return -1
+        if (a.type !== 'tema1' && b.type === 'tema1') return 1
+        return a.name.localeCompare(b.name)
+      })
+      
+      return suites
     }
-
-    function guesssuiteId(path) {
-      if (path.includes('sanidad')) return 'system'
-      if (path.includes('humo')) return 'system-humo'
-      if (path.includes('regresion')) return 'system-regresion'
-      if (path.includes('adhoc')) return 'integration-adhoc'
-      if (path.includes('ascendente')) return 'integration-ascendente'
-      if (path.includes('esqueleto')) return 'integration-esqueleto'
-      if (path.includes('carga') || path.includes('estres')) return 'performance'
-      return 'unknown'
-    }
-
-    function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
 
     /* ═══════════════════════════════════════════════
        INIT — Carga resultados reales desde test-results.json
-    ═══════════════════════════════════════════════ */
+     ═══════════════════════════════════════════════ */
     window.addEventListener('DOMContentLoaded', () => {
-      renderAll()
-      updateStats()
-
       // Intenta cargar test-results.json del mismo directorio
       fetch('./test-results.json')
         .then(r => r.json())
         .then(json => {
+          const dynamicSuites = buildSuitesFromJSON(json)
+          if (dynamicSuites && dynamicSuites.length > 0) {
+            const performanceSuites = TEST_SUITES.filter(s => s.type === 'performance')
+            TEST_SUITES.length = 0
+            TEST_SUITES.push(...dynamicSuites, ...performanceSuites)
+          }
           applyVitestResults(json)
           setStatus('passed')
           const d = new Date(json.startTime)
@@ -1647,7 +1755,8 @@
           showToast(`✅ Última ejecución: ${d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })} — ${json.numPassedTests}/${json.numTotalTests} pruebas`, 'success')
         })
         .catch(() => {
-          // Sin resultados, queda en modo "listo para ejecutar"
+          renderAll()
+          updateStats()
         })
     })
 
@@ -1656,7 +1765,6 @@
      * Mapea por nombre de test (ancestorTitle + title) a nuestras claves.
      */
     function applyVitestResults(json) {
-      // Construir mapa: fullName → {status, duration}
       const byName = {}
       json.testResults.forEach(file => {
         file.assertionResults.forEach(t => {
@@ -1664,7 +1772,6 @@
         })
       })
 
-      // Recorrer nuestras suites y mapear por nombre
       TEST_SUITES.forEach(suite => {
         suite.groups.forEach((group, gi) => {
           group.tests.forEach((test, ti) => {
@@ -1682,10 +1789,8 @@
         })
       })
 
-      renderAll()
       updateStats()
     }
   </script>
 </body>
-
 </html>

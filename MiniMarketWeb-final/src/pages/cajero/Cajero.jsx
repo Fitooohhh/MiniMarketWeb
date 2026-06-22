@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { 
   Search, Scan, Plus, Minus, Trash2, ShoppingCart, 
-  CreditCard, DollarSign, QrCode, User as UserIcon, Package, Check
+  CreditCard, DollarSign, QrCode, User as UserIcon, Package, Check,
+  Clock, X
 } from 'lucide-react'
+import { format } from 'date-fns'
 import Layout from '../../components/Layout'
 import { supabase } from '../../lib/supabase'
 import { formatCurrency } from '../../lib/currencyFormatter'
@@ -11,6 +13,7 @@ import { lealtadService } from '../../lib/lealtadService'
 import { useAuthStore } from '../../store/useAuthStore'
 import toast from 'react-hot-toast'
 import PaymentMethodModal from '../cliente/components/PaymentMethodModal'
+import { verificarGeofencing } from '../../lib/geofencing'
 
 
 export default function CajeroDashboard() {
@@ -28,6 +31,171 @@ export default function CajeroDashboard() {
   const [isScannerActive, setIsScannerActive] = useState(false)
   const scannerRef = useRef(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+
+  // Asistencia & Geofencing
+  const [showAsistenciaModal, setShowAsistenciaModal] = useState(false)
+  const [asistenciaHoy, setAsistenciaHoy] = useState(null)
+  const [loadingAsistencia, setLoadingAsistencia] = useState(false)
+  const [registrandoAsistencia, setRegistrandoAsistencia] = useState(false)
+
+  const getEmpId = async () => {
+    if (!profile) return null
+    if (profile.id_empleado) return profile.id_empleado
+    
+    try {
+      const { data } = await supabase
+        .from('empleado')
+        .select('id_empleado')
+        .eq('id_usuario', profile.id_usuario)
+        .maybeSingle()
+      return data?.id_empleado || null
+    } catch (e) {
+      console.error('Error fetching employee ID:', e)
+      return null
+    }
+  }
+
+  const loadAsistencia = async () => {
+    if (!profile) return
+    try {
+      setLoadingAsistencia(true)
+      const empId = await getEmpId()
+      if (!empId) return
+
+      const hoy = format(new Date(), 'yyyy-MM-dd')
+      const { data } = await supabase
+        .from('asistencia')
+        .select('*')
+        .eq('id_empleado', empId)
+        .eq('fecha', hoy)
+        .maybeSingle()
+      setAsistenciaHoy(data)
+    } catch (e) {
+      console.error('Error loading attendance:', e)
+    } finally {
+      setLoadingAsistencia(false)
+    }
+  }
+
+  useEffect(() => {
+    if (showAsistenciaModal) {
+      loadAsistencia()
+    }
+  }, [showAsistenciaModal])
+
+  const marcarEntrada = async () => {
+    try {
+      setRegistrandoAsistencia(true)
+      const hoy = format(new Date(), 'yyyy-MM-dd')
+      
+      const empId = await getEmpId()
+      if (!empId) {
+        toast.error('No se pudo encontrar tu perfil de empleado. Por favor cierra sesión y vuelve a ingresar.')
+        return
+      }
+
+      let latitud = null
+      let longitud = null
+      
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          })
+          latitud = position.coords.latitude
+          longitud = position.coords.longitude
+        } catch (error) {
+          toast.error('No se pudo obtener tu ubicación GPS para verificar el Geo-fencing. Activa la ubicación.')
+          return
+        }
+      } else {
+        toast.error('Tu navegador no soporta geolocalización.')
+        return
+      }
+
+      try {
+        verificarGeofencing(latitud, longitud)
+      } catch (geoError) {
+        toast.error(geoError.message)
+        return
+      }
+
+      const { error } = await supabase
+        .from('asistencia')
+        .insert([
+          {
+            id_empleado: empId,
+            fecha: hoy,
+            hora_entrada: new Date().toISOString()
+          }
+        ])
+
+      if (error) throw error
+
+      toast.success('Entrada registrada exitosamente')
+      loadAsistencia()
+    } catch (error) {
+      console.error('Error marking entrada:', error)
+      toast.error(error.message || 'Error al registrar entrada')
+    } finally {
+      setRegistrandoAsistencia(false)
+    }
+  }
+
+  const marcarSalida = async () => {
+    try {
+      setRegistrandoAsistencia(true)
+      
+      const empId = await getEmpId()
+      if (!empId) {
+        toast.error('No se pudo encontrar tu perfil de empleado. Por favor cierra sesión y vuelve a ingresar.')
+        return
+      }
+
+      let latitud = null
+      let longitud = null
+      
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 5000 })
+          })
+          latitud = position.coords.latitude
+          longitud = position.coords.longitude
+        } catch (error) {
+          toast.error('No se pudo obtener tu ubicación GPS para verificar el Geo-fencing. Activa la ubicación.')
+          return
+        }
+      } else {
+        toast.error('Tu navegador no soporta geolocalización.')
+        return
+      }
+
+      try {
+        verificarGeofencing(latitud, longitud)
+      } catch (geoError) {
+        toast.error(geoError.message)
+        return
+      }
+
+      const { error } = await supabase
+        .from('asistencia')
+        .update({
+          hora_salida: new Date().toISOString()
+        })
+        .eq('id_asistencia', asistenciaHoy.id_asistencia)
+
+      if (error) throw error
+
+      toast.success('Salida registrada exitosamente')
+      loadAsistencia()
+    } catch (error) {
+      console.error('Error marking salida:', error)
+      toast.error(error.message || 'Error al registrar salida')
+    } finally {
+      setRegistrandoAsistencia(false)
+    }
+  }
 
   useEffect(() => {
     loadProductos()
@@ -535,8 +703,15 @@ export default function CajeroDashboard() {
                 <p className="text-sm text-gray-500">Busca por nombre o escanea el código de barras</p>
               </div>
 
-              {/* Botón Escáner Cámara */}
+              {/* Botones de Escáner y Asistencia */}
               <div className="flex gap-2">
+                <button
+                  onClick={() => setShowAsistenciaModal(true)}
+                  className="btn bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 font-semibold"
+                >
+                  <Clock size={18} />
+                  Asistencia
+                </button>
                 <button
                   onClick={toggleScanner}
                   className={`btn flex items-center gap-2 ${
@@ -766,6 +941,110 @@ export default function CajeroDashboard() {
           onClose={() => setShowPaymentModal(false)}
           onConfirm={handleFinalizarCompra}
         />
+      )}
+
+      {/* Modal de Asistencia */}
+      {showAsistenciaModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md w-full overflow-hidden transition-all transform scale-100">
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b border-gray-150 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                Control de Asistencia
+              </h3>
+              <button
+                onClick={() => setShowAsistenciaModal(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-6 space-y-6">
+              {loadingAsistencia ? (
+                <div className="flex flex-col items-center py-8">
+                  <div className="spinner w-8 h-8 text-blue-600 border-2 border-t-transparent rounded-full animate-spin mb-3" />
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Verificando estado actual...</p>
+                </div>
+              ) : asistenciaHoy ? (
+                <div className="space-y-4">
+                  {/* Entrada registrada */}
+                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/20 rounded-xl border border-green-100 dark:border-green-900/30">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-lg">
+                        <Clock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900 dark:text-white">Entrada Registrada</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {format(new Date(asistenciaHoy.hora_entrada), 'HH:mm:ss')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Salida */}
+                  {asistenciaHoy.hora_salida ? (
+                    <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 rounded-lg">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">Salida Registrada</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {format(new Date(asistenciaHoy.hora_salida), 'HH:mm:ss')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={marcarSalida}
+                      disabled={registrandoAsistencia}
+                      className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 shadow-md shadow-blue-500/10"
+                    >
+                      {registrandoAsistencia ? (
+                        <div className="spinner w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Clock className="w-5 h-5" />
+                          Marcar Salida
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-6 space-y-4">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full flex items-center justify-center mx-auto">
+                    <Clock className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-semibold text-gray-900 dark:text-white">No has marcado entrada hoy</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Habilita tu GPS para verificar tu ubicación dentro de la sucursal.</p>
+                  </div>
+                  <button
+                    onClick={marcarEntrada}
+                    disabled={registrandoAsistencia}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 shadow-md shadow-green-500/10"
+                  >
+                    {registrandoAsistencia ? (
+                      <div className="spinner w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <Clock className="w-5 h-5" />
+                        Marcar Entrada
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </Layout>
   )

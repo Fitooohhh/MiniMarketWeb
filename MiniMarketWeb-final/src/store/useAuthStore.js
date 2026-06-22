@@ -51,7 +51,7 @@ export const useAuthStore = create(
           // Obtener datos adicionales según el rol usando id_usuario
           let profile = { ...userData }
           
-          if (userData.rol === 'empleado' || userData.rol === 'admin' || userData.rol === 'repartidor') {
+          if (userData.rol === 'empleado' || userData.rol === 'admin' || userData.rol === 'repartidor' || userData.rol === 'cajero') {
             // Buscar empleado por id_usuario
             const { data: empleadoData } = await supabase
               .from('empleado')

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { 
   Home, Package, CheckSquare, Clock, Users, UserCheck, 
   Tag, Star, RotateCcw, Calendar, DollarSign, Bell, 
-  LogOut, Moon, Sun, X, Menu, Warehouse, Truck, ShoppingCart
+  LogOut, Moon, Sun, X, Menu, Warehouse, Truck, ShoppingCart,
+  FileSpreadsheet, Shield
 } from 'lucide-react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -11,13 +12,14 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 import toast from 'react-hot-toast'
+import Layout from '../../components/Layout'
 
 // Importar pestañas
 import PromocionesTab from './tabs/PromocionesTab'
 import LealtadTab from './tabs/LealtadTab'
-import DevolucionesTab from './tabs/DevolucionesTab'
 import TurnosTab from './tabs/TurnosTab'
-import NominaTab from './tabs/NominaTab'
+import ReportesTab from './tabs/ReportesTab'
+import GeofencingTab from './tabs/GeofencingTab'
 
 export default function AdminDashboard() {
   const { profile, signOut } = useAuthStore()
@@ -27,16 +29,15 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('promociones')
   const [stats, setStats] = useState({})
   const [loading, setLoading] = useState(true)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     // Determinar pestaña activa basada en la URL
     const path = location.pathname
-    if (path.includes('/admin/promociones')) setActiveTab('promociones')
-    else if (path.includes('/admin/lealtad')) setActiveTab('lealtad')
-    else if (path.includes('/admin/devoluciones')) setActiveTab('devoluciones')
-    else if (path.includes('/admin/turnos')) setActiveTab('turnos')
-    else if (path.includes('/admin/nomina')) setActiveTab('nomina')
+    if (path.includes('/admin/promociones') || path.includes('/empleado/promociones')) setActiveTab('promociones')
+    else if (path.includes('/admin/lealtad') || path.includes('/empleado/lealtad')) setActiveTab('lealtad')
+    else if (path.includes('/admin/turnos') || path.includes('/empleado/turnos')) setActiveTab('turnos')
+    else if (path.includes('/admin/reportes') || path.includes('/empleado/reportes') || path.includes('reportes')) setActiveTab('reportes')
+    else if (path.includes('/admin/geofencing') || path.includes('/empleado/geofencing')) setActiveTab('geofencing')
     
     loadStats()
   }, [location.pathname])
@@ -69,17 +70,12 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleLogout = async () => {
-    await signOut()
-    navigate('/login')
-  }
-
   const tabs = [
     { id: 'promociones', label: 'Promociones', icon: Tag },
     { id: 'lealtad', label: 'Programa Lealtad', icon: Star },
-    { id: 'devoluciones', label: 'Devoluciones', icon: RotateCcw },
     { id: 'turnos', label: 'Gestión Turnos', icon: Calendar },
-    { id: 'nomina', label: 'Nómina', icon: DollarSign },
+    { id: 'reportes', label: 'Reportes', icon: FileSpreadsheet },
+    { id: 'geofencing', label: 'Geo-fencing', icon: Shield },
   ]
 
   const statCards = [
@@ -114,171 +110,57 @@ export default function AdminDashboard() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <Layout type="empleado">
       {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-50">
-        <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-6">
-          <div className="flex justify-between items-center h-16 min-w-0">
-            {/* Logo y nombre */}
-            <div className="flex items-center flex-shrink-0">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>
-              <h1 className="text-lg font-bold text-primary-600 ml-1 hidden sm:block">
-                MM Admin
-              </h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          Panel de Administración
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Bienvenido, {profile?.nombre || 'Administrador'}
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 animate-pulse">
+              <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
             </div>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center flex-1 min-w-0 mx-4 space-x-1 overflow-x-auto">
-              {tabs.map(tab => {
-                const Icon = tab.icon
-                const isActive = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center px-2 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <Icon size={14} className="mr-1 flex-shrink-0" />
-                    <span className="truncate max-w-[80px]">{tab.label}</span>
-                  </button>
-                )
-              })}
-            </nav>
-
-            {/* Right side actions */}
-            <div className="flex items-center space-x-1 flex-shrink-0">
-              {/* Notificaciones */}
-              <button className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
-                <Bell size={16} />
-              </button>
-
-              {/* Toggle tema */}
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-              </button>
-
-              {/* Usuario */}
-              <div className="hidden sm:flex items-center space-x-1 ml-1">
-                <div className="text-right">
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                    {profile?.nombre}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                    {profile?.rol}
-                  </p>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  title="Cerrar sesión"
-                >
-                  <LogOut size={16} />
-                </button>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
-
-        {/* Mobile Navigation */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-200 dark:border-gray-700">
-            <nav className="px-4 py-3 space-y-1">
-              {tabs.map(tab => {
-                const Icon = tab.icon
-                const isActive = activeTab === tab.id
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => {
-                      setActiveTab(tab.id)
-                      setMobileMenuOpen(false)
-                    }}
-                    className={`w-full flex items-center px-3 py-2 rounded-md text-sm font-medium ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <Icon size={18} className="mr-3" />
-                    {tab.label}
-                  </button>
-                )
-              })}
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center px-3 py-2 rounded-md text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              >
-                <LogOut size={18} className="mr-3" />
-                Cerrar sesión
-              </button>
-            </nav>
-          </div>
-        )}
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Panel de Administración
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Bienvenido, {profile?.nombre || 'Administrador'}
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
-          </p>
-        </div>
-
-        {/* Stats Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 animate-pulse">
-                <div className="h-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {statCards.map((stat, index) => {
-              const Icon = stat.icon
-              return (
-                <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {stat.title}
-                      </p>
-                      <p className={`text-3xl font-bold mt-2 ${stat.textColor}`}>
-                        {stat.value}
-                      </p>
-                    </div>
-                    <div className={`p-4 rounded-full ${stat.bgColor}`}>
-                      <Icon className={`w-8 h-8 ${stat.textColor}`} />
-                    </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {statCards.map((stat, index) => {
+            const Icon = stat.icon
+            return (
+              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow hover:shadow-lg transition-shadow p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                      {stat.title}
+                    </p>
+                    <p className={`text-3xl font-bold mt-2 ${stat.textColor}`}>
+                      {stat.value}
+                    </p>
+                  </div>
+                  <div className={`p-4 rounded-full ${stat.bgColor}`}>
+                    <Icon className={`w-8 h-8 ${stat.textColor}`} />
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
-        {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+      {/* Tabs */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        {activeTab !== 'reportes' && (
           <div className="flex border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
             {tabs.map(tab => {
               const Icon = tab.icon
@@ -298,17 +180,17 @@ export default function AdminDashboard() {
               )
             })}
           </div>
+        )}
 
-          {/* Tab Content */}
-          <div className="p-6">
-            {activeTab === 'promociones' && <PromocionesTab profile={profile} />}
-            {activeTab === 'lealtad' && <LealtadTab profile={profile} />}
-            {activeTab === 'devoluciones' && <DevolucionesTab profile={profile} />}
-            {activeTab === 'turnos' && <TurnosTab profile={profile} />}
-            {activeTab === 'nomina' && <NominaTab profile={profile} />}
-          </div>
+        {/* Tab Content */}
+        <div className="p-6">
+          {activeTab === 'promociones' && <PromocionesTab profile={profile} />}
+          {activeTab === 'lealtad' && <LealtadTab profile={profile} />}
+          {activeTab === 'turnos' && <TurnosTab profile={profile} />}
+          {activeTab === 'reportes' && <ReportesTab profile={profile} />}
+          {activeTab === 'geofencing' && <GeofencingTab />}
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   )
 }

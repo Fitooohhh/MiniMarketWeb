@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Package, CheckSquare, Clock, TrendingUp, Warehouse, UserCheck, Users, Truck, ShoppingCart } from 'lucide-react'
+import { Package, CheckSquare, Clock, TrendingUp, Warehouse, UserCheck, Users, Truck, ShoppingCart, Shield } from 'lucide-react'
 import Layout from '../../components/Layout'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -170,57 +170,122 @@ export default function EmpleadoDashboard() {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
             Accesos Rápidos
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <a
-              href="/empleado/cajero"
-              className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10"
-            >
-              <ShoppingCart className="w-8 h-8 text-blue-600 mb-2" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                Caja Registradora
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Punto de Venta POS y escáner
-              </p>
-            </a>
-            <a
-              href="/empleado/pedidos"
-              className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
-            >
-              <Package className="w-8 h-8 text-primary-600 mb-2" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                Ver Pedidos
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Gestiona tus entregas
-              </p>
-            </a>
-            {profile?.rol !== 'admin' && (
-              <a
-                href="/empleado/tareas"
-                className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
-              >
-                <CheckSquare className="w-8 h-8 text-primary-600 mb-2" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Mis Tareas
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Revisa tus pendientes
-                </p>
-              </a>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {profile?.rol === 'admin' ? (
+              <>
+                <a
+                  href="/empleado/asistencia-empleados"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10"
+                >
+                  <Shield className="w-8 h-8 text-blue-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Geo-fencing
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Configuración de rango y mapa
+                  </p>
+                </a>
+                <a
+                  href="/empleado/usuarios"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <Users className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Gestión Usuarios
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Administra el personal
+                  </p>
+                </a>
+                <a
+                  href="/empleado/pedidos"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <Package className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Ver Pedidos
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Gestión de ventas y envíos
+                  </p>
+                </a>
+                <a
+                  href="/empleado/historial-repartos"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <Truck className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Historial Repartos
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Seguimiento de entregas
+                  </p>
+                </a>
+                <a
+                  href="/empleado/reportes"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <TrendingUp className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Reportes
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Estadísticas y métricas
+                  </p>
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href="/empleado/cajero"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-900/10"
+                >
+                  <ShoppingCart className="w-8 h-8 text-blue-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Caja Registradora
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Punto de Venta POS y escáner
+                  </p>
+                </a>
+                <a
+                  href="/empleado/pedidos"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <Package className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Ver Pedidos
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Gestiona tus entregas
+                  </p>
+                </a>
+                <a
+                  href="/empleado/tareas"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <CheckSquare className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Mis Tareas
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Revisa tus pendientes
+                  </p>
+                </a>
+                <a
+                  href="/empleado/asistencia"
+                  className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
+                >
+                  <Clock className="w-8 h-8 text-primary-600 mb-2" />
+                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                    Asistencia
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    Marca tu entrada/salida
+                  </p>
+                </a>
+              </>
             )}
-            <a
-              href="/empleado/asistencia"
-              className="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-primary-500 dark:hover:border-primary-500 transition-colors"
-            >
-              <Clock className="w-8 h-8 text-primary-600 mb-2" />
-              <h3 className="font-semibold text-gray-900 dark:text-white">
-                Asistencia
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Marca tu entrada/salida
-              </p>
-            </a>
           </div>
         </div>
 

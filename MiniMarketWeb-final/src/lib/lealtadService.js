@@ -1,5 +1,32 @@
 import { supabase } from './supabase'
 
+/**
+ * ============================================================================
+ * PRINCIPIOS DE PROGRAMACIÓN Y ARQUITECTURA - TEMA 1
+ * ============================================================================
+ * 
+ * 1. ARQUITECTURA EN CAPAS (Layered Architecture):
+ *    Este archivo representa la CAPA DE LÓGICA DE NEGOCIO (Services). No manipula 
+ *    directamente elementos visuales de la interfaz (Capa de Presentación) ni
+ *    ejecuta queries crudos SQL (Capa de Acceso a Datos), sino que encapsula las 
+ *    reglas del dominio de lealtad (puntos, niveles, canjes) y las comunica con 
+ *    la base de datos a través de abstracciones.
+ * 
+ * 2. ARQUITECTURA CLIENTE-SERVIDOR:
+ *    Establece la comunicación asíncrona segura entre la aplicación cliente (SPA React) 
+ *    y el servidor centralizado de persistencia de datos (Supabase) mediante APIs.
+ * 
+ * 3. SRP (Single Responsibility Principle - Principio de Responsabilidad Única):
+ *    Esta clase tiene la única responsabilidad de gestionar las reglas del programa 
+ *    de fidelización de clientes (cálculo de puntos acumulados, consulta de niveles,
+ *    y procesamiento de canjes de recompensas).
+ * 
+ * 4. YAGNI (You Aren't Gonna Need It - No lo vas a necesitar):
+ *    El cálculo de puntos y la asignación se implementan de forma directa y simplificada,
+ *    sin diseñar complejos motores de reglas dinámicos que no fueron explícitamente 
+ *    solicitados, reduciendo así la posibilidad de errores.
+ * ============================================================================
+ */
 class LealtadService {
   // Calcular puntos de lealtad basados en el total de compra
   calcularPuntosCompra(totalCompra) {

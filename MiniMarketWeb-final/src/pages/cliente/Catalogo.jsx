@@ -61,29 +61,61 @@ export default function ClienteCatalogo() {
 
       // Cargar promociones activas
       const { data: promociones } = await supabase
-        .from('promocion')
-        .select('*')
-        .lte('fecha_inicio', new Date().toISOString())
-        .gte('fecha_fin', new Date().toISOString())
+        .from('promocion_avanzada')
+        .select(`
+          *,
+          promocion_detalle (
+            id_producto,
+            cantidad_requerida,
+            cantidad_regalo,
+            precio_especial
+          )
+        `)
+        .eq('activa', true)
+        .lte('fecha_inicio', new Date().toISOString().split('T')[0])
+        .gte('fecha_fin', new Date().toISOString().split('T')[0])
 
       // Crear mapa de promociones por id_producto
       const promocionesMap = {}
       promociones?.forEach(promo => {
-        promocionesMap[promo.id_producto] = promo
+        if (promo.promocion_detalle && promo.promocion_detalle.length > 0) {
+          promo.promocion_detalle.forEach(det => {
+            promocionesMap[det.id_producto] = {
+              tipo: promo.tipo,
+              descuento_porcentaje: promo.descuento_porcentaje,
+              monto_descuento: promo.monto_descuento,
+              precio_especial: det.precio_especial,
+              cantidad_requerida: det.cantidad_requerida,
+              cantidad_regalo: det.cantidad_regalo
+            }
+          })
+        }
       })
 
       // Combinar productos con promociones
       let productosConPromociones = productosData.map(producto => {
         const promo = promocionesMap[producto.id_producto]
-        const precioConDescuento = promo 
-          ? (producto.precio * (1 - promo.descuento / 100)).toFixed(2)
-          : null
+        let precioConDescuento = null
+        let descuentoPorcentaje = null
+
+        if (promo) {
+          if (promo.precio_especial) {
+            precioConDescuento = parseFloat(promo.precio_especial).toFixed(2)
+            descuentoPorcentaje = Math.round((1 - (parseFloat(promo.precio_especial) / producto.precio)) * 100)
+          } else if (promo.descuento_porcentaje) {
+            precioConDescuento = (producto.precio * (1 - promo.descuento_porcentaje / 100)).toFixed(2)
+            descuentoPorcentaje = promo.descuento_porcentaje
+          } else if (promo.monto_descuento) {
+            precioConDescuento = Math.max(0, producto.precio - promo.monto_descuento).toFixed(2)
+            descuentoPorcentaje = Math.round((promo.monto_descuento / producto.precio) * 100)
+          }
+        }
         
         return {
           ...producto,
           id: producto.id_producto, // Normalizar id
           precio_con_descuento: precioConDescuento,
-          descuento_porcentaje: promo?.descuento,
+          descuento_porcentaje: descuentoPorcentaje,
           en_promocion: !!promo
         }
       })

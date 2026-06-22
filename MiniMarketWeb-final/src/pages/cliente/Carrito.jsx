@@ -81,6 +81,7 @@ export default function ClienteCarrito() {
             direccion_envio: tipoEntrega === 'domicilio' ? direccionEntrega : null,
             latitud: selectedLocation?.location?.lat || null,
             longitud: selectedLocation?.location?.lng || null,
+            metodo_pago: paymentData.method
           }
         ])
         .select()

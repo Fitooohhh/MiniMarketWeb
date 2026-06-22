@@ -3,7 +3,7 @@ import {
   Home, Package, CheckSquare, Clock, ShoppingCart, 
   User, LogOut, Moon, Sun, Bell, Menu, X, 
   Warehouse, UserCheck, Users, Tag, Star, RotateCcw,
-  Calendar, DollarSign
+  Calendar, DollarSign, FileSpreadsheet
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
@@ -30,7 +30,6 @@ export default function Layout({ children, type = 'cliente' }) {
   const empleadoNormalLinks = [
     { to: '/empleado/tareas', icon: CheckSquare, label: 'Tareas' },
     { to: '/empleado/turnos', icon: Calendar, label: 'Mis Turnos' },
-    { to: '/empleado/devoluciones', icon: RotateCcw, label: 'Devoluciones' },
   ]
 
   // Links adicionales solo para administradores
@@ -40,6 +39,7 @@ export default function Layout({ children, type = 'cliente' }) {
     { to: '/empleado/usuarios', icon: Users, label: 'Gestión de Usuarios' },
     { to: '/empleado/historial-repartos', icon: Clock, label: 'Historial de Repartos' },
     { to: '/empleado/asistencia-empleados', icon: Users, label: 'Asistencia Empleados' },
+    { to: '/empleado/reportes', icon: FileSpreadsheet, label: 'Reportes' },
   ]
 
   // Combinar links según el rol
