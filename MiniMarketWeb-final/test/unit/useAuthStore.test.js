@@ -20,6 +20,8 @@ vi.mock('zustand/middleware', () => ({
   persist: (fn, _opts) => fn
 }))
 
+import { supabase } from '../../src/lib/supabase'
+import toast from 'react-hot-toast'
 import { useAuthStore } from '../../src/store/useAuthStore'
 
 describe('useAuthStore - Pruebas Unitarias (roles y estado)', () => {
@@ -115,5 +117,89 @@ describe('useAuthStore - Pruebas Unitarias (roles y estado)', () => {
   it('U-15: isRepartidor retorna false para perfil cliente', () => {
     useAuthStore.setState({ profile: { rol: 'cliente' } })
     expect(useAuthStore.getState().isRepartidor()).toBe(false)
+  })
+})
+
+
+describe('P2M-12 | US-01 Inicio de Sesion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    supabase.single.mockReset().mockResolvedValue({ data: null, error: null })
+    supabase.maybeSingle.mockReset().mockResolvedValue({ data: null, error: null })
+    useAuthStore.setState({ user: null, profile: null, loading: false })
+  })
+
+  it('S-01: campos vacíos no consultan Supabase', async () => {
+    supabase.single.mockResolvedValueOnce({ data: { usuario: 'unused' }, error: null })
+
+    const result = await useAuthStore.getState().signIn('', '')
+
+    expect(result.success).toBe(false)
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith('Ingresá tu usuario y contraseña')
+  })
+
+  it('S-02: credenciales inválidas mantienen user y profile en null y muestran error', async () => {
+    supabase.single.mockResolvedValueOnce({ data: null, error: { message: 'invalid credentials' } })
+
+    const result = await useAuthStore.getState().signIn('usuario', 'incorrecta')
+    const { user, profile } = useAuthStore.getState()
+
+    expect(result.success).toBe(false)
+    expect(user).toBeNull()
+    expect(profile).toBeNull()
+    expect(toast.error).toHaveBeenCalled()
+  })
+
+  it('S-03: aplica trim antes de consultar las credenciales', async () => {
+    supabase.single.mockResolvedValueOnce({
+      data: { id_usuario: 1, usuario: 'usuario', rol: 'cliente' },
+      error: null
+    })
+
+    await useAuthStore.getState().signIn(' usuario ', ' admin ')
+
+    expect(supabase.eq).toHaveBeenNthCalledWith(1, 'usuario', 'usuario')
+    expect(supabase.eq).toHaveBeenNthCalledWith(2, 'contrasena', 'admin')
+  })
+
+  it('S-04: login OK guarda user y profile con rol en minúsculas', async () => {
+    supabase.single.mockResolvedValueOnce({
+      data: { id_usuario: 2, usuario: 'admin', rol: 'ADMIN' },
+      error: null
+    })
+
+    const result = await useAuthStore.getState().signIn('admin', 'clave')
+    const { user, profile } = useAuthStore.getState()
+
+    expect(result.success).toBe(true)
+    expect(user.rol).toBe('admin')
+    expect(profile.rol).toBe('admin')
+  })
+
+  it('S-05: rol null usa cliente y no rompe el login', async () => {
+    supabase.single.mockResolvedValueOnce({
+      data: { id_usuario: 3, usuario: 'cliente', rol: null },
+      error: null
+    })
+
+    const result = await useAuthStore.getState().signIn('cliente', 'clave')
+
+    expect(result.success).toBe(true)
+    expect(useAuthStore.getState().user.rol).toBe('cliente')
+    expect(useAuthStore.getState().profile.rol).toBe('cliente')
+  })
+
+  it('S-06: login no llama a console.log', async () => {
+    supabase.single.mockResolvedValueOnce({
+      data: { id_usuario: 4, usuario: 'cliente', rol: 'cliente' },
+      error: null
+    })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await useAuthStore.getState().signIn('cliente', 'clave')
+
+    expect(logSpy).not.toHaveBeenCalled()
+    logSpy.mockRestore()
   })
 })
