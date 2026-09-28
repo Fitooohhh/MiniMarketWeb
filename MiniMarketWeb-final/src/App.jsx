@@ -31,7 +31,7 @@ import ClienteDashboard from './pages/cliente/Dashboard'
 import ClienteCatalogo from './pages/cliente/Catalogo'
 import ClienteCarrito from './pages/cliente/Carrito'
 import ClientePedidos from './pages/cliente/Pedidos'
-import ClientePerfil from './pages/cliente/Perfil'
+import PerfilGeneral from './pages/PerfilGeneral'
 import ClienteLealtad from './pages/cliente/Lealtad'
 import ClienteDevoluciones from './pages/cliente/Devoluciones'
 import RepartidorDashboard from './pages/repartidor/Repartidor'
@@ -213,7 +213,7 @@ function App() {
         } />
         <Route path="/cliente/perfil" element={
           <ProtectedRoute requireCliente>
-            <ClientePerfil />
+            <Navigate to="/perfil" replace />
           </ProtectedRoute>
         } />
         <Route path="/cliente/lealtad" element={
@@ -236,6 +236,28 @@ function App() {
         <Route path="/repartidor/turnos" element={
           <ProtectedRoute requireRepartidor>
             <RepartidorTurnos />
+          </ProtectedRoute>
+        } />
+        
+        {/* Perfil unificado - todos los roles */}
+        <Route path="/perfil" element={
+          <ProtectedRoute>
+            <PerfilGeneral />
+          </ProtectedRoute>
+        } />
+        <Route path="/empleado/perfil" element={
+          <ProtectedRoute requireEmpleado>
+            <PerfilGeneral />
+          </ProtectedRoute>
+        } />
+        <Route path="/cajero/perfil" element={
+          <ProtectedRoute requireCajero>
+            <PerfilGeneral />
+          </ProtectedRoute>
+        } />
+        <Route path="/repartidor/perfil" element={
+          <ProtectedRoute requireRepartidor>
+            <PerfilGeneral />
           </ProtectedRoute>
         } />
         

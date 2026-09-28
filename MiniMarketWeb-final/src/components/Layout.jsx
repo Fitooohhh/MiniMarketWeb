@@ -18,12 +18,16 @@ export default function Layout({ children, type = 'cliente' }) {
   const { getItemCount } = useCartStore()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Link de perfil, disponible para todos los roles
+  const perfilLink = { to: '/perfil', icon: User, label: 'Mi perfil' }
+
   // Links base para todos los empleados
   const baseEmpleadoLinks = [
     { to: '/empleado', icon: Home, label: 'Inicio' },
     { to: '/empleado/cajero', icon: ShoppingCart, label: 'Caja POS' },
     { to: '/empleado/pedidos', icon: Package, label: 'Pedidos' },
     { to: '/empleado/asistencia', icon: Clock, label: 'Asistencia' },
+    perfilLink,
   ]
 
   // Links solo para empleados normales (no admin)
@@ -40,6 +44,7 @@ export default function Layout({ children, type = 'cliente' }) {
     { to: '/empleado/historial-repartos', icon: Clock, label: 'Historial de Repartos' },
     { to: '/empleado/asistencia-empleados', icon: Users, label: 'Asistencia Empleados' },
     { to: '/empleado/reportes', icon: FileSpreadsheet, label: 'Reportes' },
+    perfilLink,
   ]
 
   // Combinar links según el rol
@@ -56,14 +61,28 @@ export default function Layout({ children, type = 'cliente' }) {
     { to: '/cliente', icon: Home, label: 'Inicio' },
     { to: '/cliente/catalogo', icon: Package, label: 'Catálogo' },
     { to: '/cliente/pedidos', icon: CheckSquare, label: 'Mis Pedidos' },
-    { to: '/cliente/perfil', icon: User, label: 'Perfil' },
+    perfilLink,
   ]
 
   const cajeroLinks = [
     { to: '/cajero', icon: ShoppingCart, label: 'Caja POS' },
+    perfilLink,
   ]
 
-  const links = type === 'empleado' ? empleadoLinks : type === 'cajero' ? cajeroLinks : clienteLinks
+  const repartidorLinks = [
+    { to: '/repartidor', icon: Home, label: 'Inicio' },
+    { to: '/repartidor/turnos', icon: Calendar, label: 'Mis Turnos' },
+    perfilLink,
+  ]
+
+  const linksByType = {
+    empleado: empleadoLinks,
+    cliente: clienteLinks,
+    cajero: cajeroLinks,
+    repartidor: repartidorLinks,
+  }
+
+  const links = linksByType[type] ?? clienteLinks
   const cartCount = type === 'cliente' ? getItemCount() : 0
 
   const handleLogout = async () => {

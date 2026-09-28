@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, useLocation } from 'react-router-dom'
 import React from 'react'
 
 // Mock del store de autenticación
@@ -144,5 +144,127 @@ describe('ProtectedRoute - usuario autenticado', () => {
       </ProtectedRoute>
     )
     expect(screen.getByTestId('contenido-protegido')).toBeTruthy()
+  })
+})
+
+const RutaActual = () => {
+  const location = useLocation()
+  return <div data-testid="ruta-actual">{location.pathname}</div>
+}
+
+const renderEnRuta = (ruta, ui) =>
+  render(
+    <MemoryRouter initialEntries={[ruta]}>
+      <RutaActual />
+      {ui}
+    </MemoryRouter>
+  )
+
+describe('P2M-15 | US-03 Control de acceso', () => {
+  beforeEach(() => {
+    mockState.loading = false
+    mockState.user = null
+    mockState.profile = null
+  })
+
+  it('A-01: sin sesion, una ruta protegida lleva a /login', () => {
+    renderEnRuta(
+      '/empleado/productos',
+      <ProtectedRoute requireEmpleado>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/login')
+    expect(screen.queryByTestId('contenido-protegido')).toBeNull()
+  })
+
+  it('A-02: un cliente sin permiso vuelve a SU dashboard y no al login', () => {
+    mockState.user = { id_usuario: 2 }
+    mockState.profile = { rol: 'cliente' }
+
+    renderEnRuta(
+      '/empleado/usuarios',
+      <ProtectedRoute requireEmpleado>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/cliente')
+    expect(screen.queryByTestId('contenido-protegido')).toBeNull()
+  })
+
+  it('A-03: un admin si ve una ruta de empleado', () => {
+    mockState.user = { id_usuario: 3 }
+    mockState.profile = { rol: 'admin' }
+
+    renderEnRuta(
+      '/empleado/usuarios',
+      <ProtectedRoute requireEmpleado>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('contenido-protegido')).toBeTruthy()
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/empleado/usuarios')
+  })
+
+  it('A-04: un repartidor sin permiso vuelve a /repartidor', () => {
+    mockState.user = { id_usuario: 4 }
+    mockState.profile = { rol: 'repartidor' }
+
+    renderEnRuta(
+      '/cajero',
+      <ProtectedRoute requireCajero>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/repartidor')
+    expect(screen.queryByTestId('contenido-protegido')).toBeNull()
+  })
+
+  it('A-05: un admin no entra a una ruta de repartidor, vuelve a /empleado', () => {
+    mockState.user = { id_usuario: 5 }
+    mockState.profile = { rol: 'admin' }
+
+    renderEnRuta(
+      '/repartidor',
+      <ProtectedRoute requireRepartidor>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/empleado')
+    expect(screen.queryByTestId('contenido-protegido')).toBeNull()
+  })
+
+  it('A-06: requireRoles admite mas de un rol en la misma ruta', () => {
+    mockState.user = { id_usuario: 6 }
+    mockState.profile = { rol: 'cajero' }
+
+    renderEnRuta(
+      '/empleado/productos',
+      <ProtectedRoute requireRoles={['empleado', 'cajero']}>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('contenido-protegido')).toBeTruthy()
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/empleado/productos')
+  })
+
+  it('A-07: un rol desconocido cae en el dashboard por defecto de cliente', () => {
+    mockState.user = { id_usuario: 7 }
+    mockState.profile = { rol: null }
+
+    renderEnRuta(
+      '/empleado',
+      <ProtectedRoute requireEmpleado>
+        <Contenido />
+      </ProtectedRoute>
+    )
+
+    expect(screen.getByTestId('ruta-actual').textContent).toBe('/cliente')
   })
 })
