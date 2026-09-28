@@ -29,9 +29,17 @@ export const useAuthStore = create(
           set({ loading: false })
         }
       },
-      
       // Login
       signIn: async (usuario, password) => {
+        usuario = (usuario || '').trim()
+        password = (password || '').trim()
+
+        if (!usuario || !password) {
+          const message = 'Ingresá tu usuario y contraseña'
+          toast.error(message)
+          return { success: false, error: message }
+        }
+
         try {
           // Verificar credenciales en la tabla usuario
           const { data: userData, error: userError } = await supabase
@@ -44,9 +52,8 @@ export const useAuthStore = create(
           if (userError || !userData) {
             throw new Error('Usuario o contraseña incorrectos')
           }
-          
           // Normalizar el rol a minúsculas
-          userData.rol = userData.rol.toLowerCase()
+          userData.rol = (userData.rol || 'cliente').toLowerCase()
           
           // Obtener datos adicionales según el rol usando id_usuario
           let profile = { ...userData }
@@ -77,14 +84,14 @@ export const useAuthStore = create(
             }
           }
           
-          console.log('SignIn - userData:', userData)
-          console.log('SignIn - profile final:', profile)
+      
+          
           
           set({ user: userData, profile })
           toast.success(`¡Bienvenido ${userData.usuario}!`)
           return { success: true, profile }
         } catch (error) {
-          console.error('Error en signIn:', error)
+          console.error('Error en signIn:', error.message)
           toast.error(error.message || 'Error al iniciar sesión')
           return { success: false, error: error.message }
         }
