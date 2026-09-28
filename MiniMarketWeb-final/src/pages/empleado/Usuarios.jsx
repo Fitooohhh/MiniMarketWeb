@@ -5,12 +5,16 @@ import {
 } from 'lucide-react'
 import Layout from '../../components/Layout'
 import { supabase } from '../../lib/supabase'
+import { useAuthStore } from '../../store/useAuthStore'
+import { normalizarRol, esRolValido, rolesAsignablesPara, etiquetaDeRol } from '../../lib/roles'
 import toast from 'react-hot-toast'
 
 // Importar componentes de pestañas
 import TurnosTab from './tabs/TurnosTab'
 
 export default function Usuarios() {
+  const rolActual = useAuthStore((state) => state.profile?.rol)
+  const rolesAsignables = rolesAsignablesPara(rolActual)
   const [activeTab, setActiveTab] = useState('usuarios')
   const [usuarios, setUsuarios] = useState([])
   const [loading, setLoading] = useState(true)
@@ -62,13 +66,19 @@ export default function Usuarios() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (!esRolValido(formData.rol)) {
+      toast.error('Seleccioná un rol válido')
+      return
+    }
+
     try {
       if (editingId) {
         const { error } = await supabase
           .from('usuario')
           .update({
             usuario: formData.usuario,
-            rol: formData.rol,
+            rol: normalizarRol(formData.rol),
             nombre: formData.nombre
           })
           .eq('id_usuario', editingId)
@@ -81,7 +91,7 @@ export default function Usuarios() {
           .insert({
             usuario: formData.usuario,
             contrasena: formData.contrasena,
-            rol: formData.rol,
+            rol: normalizarRol(formData.rol),
             nombre: formData.nombre
           })
 
@@ -267,13 +277,13 @@ export default function Usuarios() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                usuario.rol === 'admin' 
+                                normalizarRol(usuario.rol) === 'admin' 
                                   ? 'bg-purple-100 text-purple-800'
-                                  : usuario.rol === 'empleado'
+                                  : normalizarRol(usuario.rol) === 'empleado'
                                   ? 'bg-blue-100 text-blue-800'
                                   : 'bg-green-100 text-green-800'
                               }`}>
-                                {usuario.rol}
+                                {etiquetaDeRol(usuario.rol)}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
@@ -412,10 +422,11 @@ export default function Usuarios() {
                     onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    <option value="empleado">Empleado</option>
-                    <option value="admin">Administrador</option>
-                    <option value="cliente">Cliente</option>
-                    <option value="repartidor">Repartidor</option>
+                    {rolesAsignables.map((rol) => (
+                      <option key={rol} value={rol}>
+                        {etiquetaDeRol(rol)}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
